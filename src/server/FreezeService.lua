@@ -79,7 +79,12 @@ function FreezeService.FreezeEnemy(enemy)
 	-- Change color to ice blue
 	for _, part in ipairs(enemy:GetDescendants()) do
 		if part:IsA("BasePart") then
-			part:SetAttribute("OriginalColor", part.Color)
+			if not part:GetAttribute("OriginalColor") then
+				part:SetAttribute("OriginalColor", part.Color)
+			end
+			if not part:GetAttribute("OriginalMaterial") then
+				part:SetAttribute("OriginalMaterial", part.Material.Value)
+			end
 			part.Color = Color3.fromRGB(150, 200, 255)
 			part.Material = Enum.Material.Ice
 		end
@@ -129,11 +134,17 @@ function FreezeService.UnfreezeEnemy(enemy)
 	
 	for _, part in ipairs(enemy:GetDescendants()) do
 		if part:IsA("BasePart") then
-			local original = part:GetAttribute("OriginalColor")
-			if original then
-				part.Color = original
+			local originalColor = part:GetAttribute("OriginalColor")
+			if originalColor then
+				part.Color = originalColor
 			end
-			part.Material = Enum.Material.Plastic
+			
+			local originalMaterial = part:GetAttribute("OriginalMaterial")
+			if originalMaterial then
+				part.Material = Enum.Material:FromValue(originalMaterial)
+			else
+				part.Material = Enum.Material.Plastic
+			end
 		end
 	end
 	
@@ -153,11 +164,15 @@ function FreezeService.UpdateVisualState(enemy, hits)
 	local ratio = hits / GameConstants.FREEZE_HITS_REQUIRED
 	for _, part in ipairs(enemy:GetDescendants()) do
 		if part:IsA("BasePart") then
-			local original = part:GetAttribute("OriginalColor") or part.Color
 			if not part:GetAttribute("OriginalColor") then
-				part:SetAttribute("OriginalColor", original)
+				part:SetAttribute("OriginalColor", part.Color)
 			end
-			part.Color = original:Lerp(Color3.fromRGB(150, 200, 255), ratio)
+			if not part:GetAttribute("OriginalMaterial") then
+				part:SetAttribute("OriginalMaterial", part.Material.Value)
+			end
+			
+			local originalColor = part:GetAttribute("OriginalColor")
+			part.Color = originalColor:Lerp(Color3.fromRGB(150, 200, 255), ratio)
 		end
 	end
 end
