@@ -16,6 +16,10 @@ marker.Parent = workspace
 
 local FreezeService = require(script:WaitForChild("FreezeService"))
 local BasicEnemy = require(script:WaitForChild("BasicEnemy"))
+local MapService = require(script:WaitForChild("MapService"))
+
+-- Build Mario Arena
+MapService.BuildArena()
 
 -- Setup Remotes
 local remoteHit = ReplicatedStorage:FindFirstChild("IceHit")
@@ -47,6 +51,11 @@ local function setupEnemy(enemy)
 end
 
 CollectionService:GetInstanceAddedSignal("Enemy"):Connect(setupEnemy)
+
+local function getRandomSpawnPos()
+	-- Arena is 120x120 (-60 to 60). Spawn within safely.
+	return Vector3.new(math.random(-50, 50), 20, math.random(-50, 50))
+end
 
 local enemyCounter = 0
 local function createTestEnemy(pos)
@@ -189,6 +198,13 @@ local function createTestEnemy(pos)
 	hum.WalkSpeed = 10 + (variant * 2) -- Different speeds for sizes
 	hum.Parent = dummy
 	
+	-- Respawn logic
+	hum.Died:Connect(function()
+		task.wait(3)
+		createTestEnemy(getRandomSpawnPos())
+		dummy:Destroy()
+	end)
+	
 	dummy.PrimaryPart = body
 	dummy.Parent = workspace
 	CollectionService:AddTag(dummy, "Enemy")
@@ -196,9 +212,9 @@ local function createTestEnemy(pos)
 end
 
 task.delay(1, function()
-	createTestEnemy(Vector3.new(15, 4, 15))
-	createTestEnemy(Vector3.new(-15, 4, -15))
-	createTestEnemy(Vector3.new(0, 4, 25))
+	for i = 1, 10 do
+		createTestEnemy(getRandomSpawnPos())
+	end
 end)
 
 print("--- FROST BROS SERVER: READY ---")
