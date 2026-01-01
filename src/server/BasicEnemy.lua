@@ -47,26 +47,76 @@ function BasicEnemy.new(model)
 		end
 	end
 	
-	-- Basic movement (wander) - Improved to stay in arena
-	task.spawn(function()
-		while self.model.Parent do
-			if not self.model:GetAttribute("IsFrozen") then
-				-- Random point within arena bounds (-50, 50)
-				local target = Vector3.new(math.random(-50, 50), self.root.Position.Y, math.random(-50, 50))
-				self.humanoid:MoveTo(target)
-				
-				-- Wait until reached or 5 seconds pass (stuck safety)
-				local reached = false
-				local conn
-				conn = self.humanoid.MoveToFinished:Connect(function() reached = true end)
-				
-				local start = os.clock()
-				while not reached and os.clock() - start < 5 and not self.model:GetAttribute("IsFrozen") do
-					task.wait(0.2)
+local PathfindingService = game:GetService("PathfindingService")
+
+	local function getNearestPlayer(range)
+		local closestPlayer = nil
+		local shortestDistance = range or 60
+
+		for _, player in ipairs(game.Players:GetPlayers()) do
+			local char = player.Character
+			if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
+				local dist = (self.root.Position - char.HumanoidRootPart.Position).Magnitude
+				if dist < shortestDistance then
+					shortestDistance = dist
+					closestPlayer = char
 				end
-				if conn then conn:Disconnect() end
 			end
-			task.wait(math.random(1, 3))
+		end
+		return closestPlayer
+	end
+
+	-- AI Loop: Pathfinding Pursuit
+	task.spawn(function()
+		local baseSpeed = 16 + (model:GetAttribute("Scale") or 1) * 2
+		local path = PathfindingService:CreatePath({
+			AgentRadius = 2 * (model:GetAttribute("Scale") or 1),
+			AgentHeight = 5 * (model:GetAttribute("Scale") or 1),
+			AgentCanJump = true,
+		})
+		
+		while self.model.Parent do
+			local isFrozen = self.model:GetAttribute("IsFrozen")
+			local freezeHits = self.model:GetAttribute("FreezeHits") or 0
+			
+			if not isFrozen then
+				-- Speed Scaling: Slower as they freeze
+				local speedRatio = 1 - (freezeHits / 3) 
+				self.humanoid.WalkSpeed = math.max(6, baseSpeed * speedRatio)
+				
+				-- Aggression Scaling: Sensing range grows with hits (Desperate)
+				local detectionRange = 80 + (freezeHits * 40)
+				local targetPlayer = getNearestPlayer(detectionRange)
+				
+				if targetPlayer then
+					-- PATHFINDING CHASE
+					local targetPos = targetPlayer.HumanoidRootPart.Position
+					local success, errorMessage = pcall(function()
+						path:ComputeAsync(self.root.Position, targetPos)
+					end)
+
+					if success and path.Status == Enum.PathStatus.Success then
+						local waypoints = path:GetWaypoints()
+						if #waypoints >= 2 then
+							self.humanoid:MoveTo(waypoints[2].Position)
+							if waypoints[2].Action == Enum.PathWaypointAction.Jump then
+								self.humanoid.Jump = true
+							end
+						end
+					else
+						-- Fallback
+						self.humanoid:MoveTo(targetPos)
+					end
+				else
+					-- ACTIVE WANDER
+					local targetPos = Vector3.new(math.random(-55, 55), self.root.Position.Y, math.random(-55, 55))
+					self.humanoid:MoveTo(targetPos)
+				end
+			else
+				self.humanoid.WalkSpeed = 0
+			end
+			
+			task.wait(0.3) -- Stable update frequency
 		end
 	end)
 	

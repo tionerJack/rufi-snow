@@ -195,7 +195,8 @@ local function createTestEnemy(pos)
 	createLeg(-1)
 	
 	local hum = Instance.new("Humanoid")
-	hum.WalkSpeed = 10 + (variant * 2) -- Different speeds for sizes
+	hum.WalkSpeed = 16 + (variant * 2) -- Matching player speed (16)
+	hum.HipHeight = 1.4 * scale -- Adjust based on leg position/size
 	hum.Parent = dummy
 	
 	-- Respawn logic
