@@ -8,6 +8,7 @@ local GameConstants = {
 	PROJECTILE_SPEED = 100,
 	PROJECTILE_RANGE = 50,
 	BALL_DAMAGE = 100, -- Instakill basic enemies
+	PUSHER_IMMUNITY_DURATION = 1.0,
 }
 
 return GameConstants

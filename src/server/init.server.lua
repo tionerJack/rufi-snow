@@ -41,9 +41,12 @@ end
 
 CollectionService:GetInstanceAddedSignal("Enemy"):Connect(setupEnemy)
 
+local enemyCounter = 0
 local function createTestEnemy(pos)
+	enemyCounter += 1
 	local dummy = Instance.new("Model")
-	dummy.Name = "CuteGoblin"
+	dummy.Name = "CuteGoblin_" .. enemyCounter
+	dummy:SetAttribute("EnemyID", enemyCounter)
 	
 	-- BODY (Small and blocky)
 	local body = Instance.new("Part")
@@ -62,6 +65,11 @@ local function createTestEnemy(pos)
 	head.Color = Color3.fromRGB(120, 180, 60)
 	head.Material = Enum.Material.Plastic
 	head.Parent = dummy
+	
+	local headWeld = Instance.new("WeldConstraint")
+	headWeld.Part0 = body
+	headWeld.Part1 = head
+	headWeld.Parent = head
 	
 	-- EARS (Pointy and blocky)
 	local function createEar(side)
@@ -132,9 +140,10 @@ local function createTestEnemy(pos)
 	hum.WalkSpeed = 14
 	hum.Parent = dummy
 	
+	dummy.PrimaryPart = body
 	dummy.Parent = workspace
 	CollectionService:AddTag(dummy, "Enemy")
-	print("Spawned Cute Goblin at:", pos)
+	print(string.format("Spawned Cute Goblin %d at %s", enemyCounter, tostring(pos)))
 end
 
 task.delay(1, function()
