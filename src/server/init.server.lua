@@ -51,25 +51,36 @@ CollectionService:GetInstanceAddedSignal("Enemy"):Connect(setupEnemy)
 local enemyCounter = 0
 local function createTestEnemy(pos)
 	enemyCounter += 1
-	local dummy = Instance.new("Model")
-	dummy.Name = "CuteGoblin_" .. enemyCounter
-	dummy:SetAttribute("EnemyID", enemyCounter)
 	
-	-- BODY (Small and blocky)
+	-- Random Variation (1 to 5)
+	local variant = math.random(1, 5)
+	local scales = {0.6, 0.8, 1.0, 1.3, 1.6}
+	local scale = scales[variant]
+	
+	local dummy = Instance.new("Model")
+	dummy.Name = "CuteImp_" .. enemyCounter
+	dummy:SetAttribute("EnemyID", enemyCounter)
+	dummy:SetAttribute("Scale", scale)
+	
+	-- Colors (Random shades of red/crimson)
+	local baseColor = Color3.fromRGB(200 + math.random(-20, 20), 40 + math.random(-20, 20), 40)
+	local accentColor = Color3.fromRGB(150, 30, 30)
+	
+	-- BODY
 	local body = Instance.new("Part")
 	body.Name = "HumanoidRootPart"
-	body.Size = Vector3.new(1.2, 1.2, 0.8)
-	body.Position = pos
-	body.Color = Color3.fromRGB(100, 150, 50) -- Greenish
+	body.Size = Vector3.new(1.2, 1.2, 0.8) * scale
+	body.Position = pos + Vector3.new(0, (1.2 * scale)/2, 0)
+	body.Color = baseColor
 	body.Material = Enum.Material.Plastic
 	body.Parent = dummy
 	
-	-- HEAD (Big and cute)
+	-- HEAD
 	local head = Instance.new("Part")
 	head.Name = "Head"
-	head.Size = Vector3.new(1.5, 1.5, 1.5)
-	head.Position = pos + Vector3.new(0, 1.35, 0)
-	head.Color = Color3.fromRGB(120, 180, 60)
+	head.Size = Vector3.new(1.5, 1.5, 1.5) * scale
+	head.Position = body.Position + Vector3.new(0, 1.35 * scale, 0)
+	head.Color = baseColor
 	head.Material = Enum.Material.Plastic
 	head.Parent = dummy
 	
@@ -78,27 +89,58 @@ local function createTestEnemy(pos)
 	headWeld.Part1 = head
 	headWeld.Parent = head
 	
-	-- EARS (Pointy and blocky)
-	local function createEar(side)
-		local ear = Instance.new("Part")
-		ear.Name = "Ear"
-		ear.Size = Vector3.new(0.8, 0.4, 0.2)
-		ear.Color = head.Color
-		ear.Parent = dummy
+	-- HORNS (Devil style)
+	local function createHorn(side)
+		local horn = Instance.new("Part")
+		horn.Name = "Horn"
+		horn.Size = Vector3.new(0.4, 0.6, 0.4) * scale
+		horn.Color = Color3.fromRGB(50, 20, 20)
+		horn.Material = Enum.Material.Plastic
+		horn.Parent = dummy
 		
 		local weld = Instance.new("WeldConstraint")
 		weld.Part0 = head
-		weld.Part1 = ear
-		weld.Parent = ear
-		ear.CFrame = head.CFrame * CFrame.new(side * 0.9, 0, 0) * CFrame.Angles(0, 0, side * math.rad(20))
+		weld.Part1 = horn
+		weld.Parent = horn
+		-- Vary horn tilt based on variant
+		local tilt = side * (10 + variant * 10)
+		horn.CFrame = head.CFrame * CFrame.new(side * 0.5 * scale, 0.8 * scale, 0) * CFrame.Angles(math.rad(tilt), 0, 0)
 	end
-	createEar(1)
-	createEar(-1)
+	createHorn(1)
+	createHorn(-1)
 	
-	-- EYES (Cute big black eyes with reflections)
+	-- TAIL (Only for larger variants 4 and 5)
+	if variant >= 4 then
+		local tail = Instance.new("Part")
+		tail.Name = "Tail"
+		tail.Size = Vector3.new(0.3, 0.3, 1.2) * scale
+		tail.Color = accentColor
+		tail.Parent = dummy
+		
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = body
+		weld.Part1 = tail
+		weld.Parent = tail
+		tail.CFrame = body.CFrame * CFrame.new(0, -0.2 * scale, 0.6 * scale) * CFrame.Angles(math.rad(-30), 0, 0)
+		
+		-- Tail Tip (Triangle/Spike)
+		local tip = Instance.new("Part")
+		tip.Size = Vector3.new(0.5, 0.5, 0.2) * scale
+		tip.Color = Color3.fromRGB(30, 10, 10)
+		tip.Shape = Enum.PartType.Block
+		tip.Parent = dummy
+		tip.CFrame = tail.CFrame * CFrame.new(0, 0, 0.7 * scale)
+		
+		local tipWeld = Instance.new("WeldConstraint")
+		tipWeld.Part0 = tail
+		tipWeld.Part1 = tip
+		tipWeld.Parent = tip
+	end
+	
+	-- EYES
 	local function createEye(offset)
 		local eye = Instance.new("Part")
-		eye.Size = Vector3.new(0.35, 0.35, 0.1)
+		eye.Size = Vector3.new(0.35, 0.35, 0.1) * scale
 		eye.Color = Color3.new(0, 0, 0)
 		eye.Material = Enum.Material.Neon
 		eye.CanCollide = false
@@ -108,11 +150,11 @@ local function createTestEnemy(pos)
 		weld.Part0 = head
 		weld.Part1 = eye
 		weld.Parent = eye
-		eye.CFrame = head.CFrame * CFrame.new(offset.X, 0.1, -0.76)
+		eye.CFrame = head.CFrame * CFrame.new(offset.X * scale, 0.1 * scale, -0.76 * scale)
 		
-		-- Eye Reflection (Glint)
+		-- Eye Reflection
 		local glint = Instance.new("Part")
-		glint.Size = Vector3.new(0.12, 0.12, 0.05)
+		glint.Size = Vector3.new(0.12, 0.12, 0.05) * scale
 		glint.Color = Color3.new(1, 1, 1)
 		glint.Material = Enum.Material.Neon
 		glint.CanCollide = false
@@ -122,17 +164,17 @@ local function createTestEnemy(pos)
 		glintWeld.Part0 = eye
 		glintWeld.Part1 = glint
 		glintWeld.Parent = glint
-		glint.CFrame = eye.CFrame * CFrame.new(0.08, 0.08, -0.06)
+		glint.CFrame = eye.CFrame * CFrame.new(0.08 * scale, 0.08 * scale, -0.06 * scale)
 	end
 	createEye(Vector2.new(0.3, 0))
 	createEye(Vector2.new(-0.3, 0))
 	
-	-- LEGS (Tiny blocky legs)
+	-- LEGS
 	local function createLeg(side)
 		local leg = Instance.new("Part")
-		leg.Size = Vector3.new(0.5, 0.8, 0.5)
-		leg.Position = pos + Vector3.new(side * 0.35, -1, 0)
-		leg.Color = Color3.fromRGB(80, 120, 40)
+		leg.Size = Vector3.new(0.5, 0.8, 0.5) * scale
+		leg.Position = body.Position + Vector3.new(side * 0.35 * scale, -1.0 * scale, 0)
+		leg.Color = accentColor
 		leg.Parent = dummy
 		
 		local weld = Instance.new("WeldConstraint")
@@ -144,13 +186,13 @@ local function createTestEnemy(pos)
 	createLeg(-1)
 	
 	local hum = Instance.new("Humanoid")
-	hum.WalkSpeed = 14
+	hum.WalkSpeed = 10 + (variant * 2) -- Different speeds for sizes
 	hum.Parent = dummy
 	
 	dummy.PrimaryPart = body
 	dummy.Parent = workspace
 	CollectionService:AddTag(dummy, "Enemy")
-	print(string.format("Spawned Cute Goblin %d at %s", enemyCounter, tostring(pos)))
+	print(string.format("Spawned Red Imp Variant %d (Scale %.1f) at %s", variant, scale, tostring(pos)))
 end
 
 task.delay(1, function()
