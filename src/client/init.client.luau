@@ -7,9 +7,59 @@ print("--- FROST BROS DEBUG: CLIENT STARTING ---")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameConstants = require(Shared:WaitForChild("GameConstants"))
 
+local TweenService = game:GetService("TweenService")
+
 local player = Players.LocalPlayer
 local mouse = player:GetMouse()
 local lastFire = 0
+
+-- Procedural Animation Helper
+local function playProceduralAnim(character, animType)
+	local isR15 = character.Humanoid.RigType == Enum.HumanoidRigType.R15
+	local rightShoulder = isR15 and character:FindFirstChild("RightUpperArm", true) and character.RightUpperArm:FindFirstChild("RightShoulder") 
+						or character:FindFirstChild("Right Shoulder", true)
+	local leftShoulder = isR15 and character:FindFirstChild("LeftUpperArm", true) and character.LeftUpperArm:FindFirstChild("LeftShoulder")
+						or character:FindFirstChild("Left Shoulder", true)
+	
+	if not rightShoulder or not rightShoulder:IsA("Motor6D") then return end
+	
+	local rightOrigC0 = rightShoulder.C0
+	local leftOrigC0 = leftShoulder and leftShoulder.C0
+	
+	if animType == "Fire" then
+		-- Snappy throw (Right arm only)
+		local targetC0 = rightOrigC0 * CFrame.new(0, 0, -1) * CFrame.Angles(math.rad(90), 0, 0)
+		local t1 = TweenService:Create(rightShoulder, TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {C0 = targetC0})
+		local t2 = TweenService:Create(rightShoulder, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {C0 = rightOrigC0})
+		t1:Play()
+		t1.Completed:Connect(function() t2:Play() end)
+		
+	elseif animType == "Push" then
+		-- Both arms forward push
+		local rTarget = rightOrigC0 * CFrame.new(0, 0, -1.2) * CFrame.Angles(math.rad(90), 0, 0)
+		local lTarget = leftOrigC0 and (leftOrigC0 * CFrame.new(0, 0, -1.2) * CFrame.Angles(math.rad(90), 0, 0))
+		
+		local rt1 = TweenService:Create(rightShoulder, TweenInfo.new(0.1, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {C0 = rTarget})
+		local rt2 = TweenService:Create(rightShoulder, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {C0 = rightOrigC0})
+		rt1:Play()
+		rt1.Completed:Connect(function() rt2:Play() end)
+		
+		if leftShoulder and lTarget then
+			local lt1 = TweenService:Create(leftShoulder, TweenInfo.new(0.1, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {C0 = lTarget})
+			local lt2 = TweenService:Create(leftShoulder, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {C0 = leftOrigC0})
+			lt1:Play()
+			lt1.Completed:Connect(function() lt2:Play() end)
+		end
+	end
+end
+
+-- Listen for Push Animation from Server
+ReplicatedStorage:WaitForChild("PlayAnim").OnClientEvent:Connect(function(animType)
+	local char = player.Character
+	if char then
+		playProceduralAnim(char, animType)
+	end
+end)
 
 local function fire()
 	if os.clock() - lastFire < GameConstants.FIRE_RATE then return end
@@ -32,6 +82,8 @@ local function fire()
 	projectile.Anchored = true
 	projectile.CFrame = CFrame.lookAt(startPos, targetPos)
 	projectile.Parent = workspace
+	
+	playProceduralAnim(character, "Fire")
 	
 	task.spawn(function()
 		local distance = 0

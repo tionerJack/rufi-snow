@@ -15,6 +15,12 @@ function RollLogic.StartRolling(enemy, direction, pusher)
 	local root = enemy:FindFirstChild("HumanoidRootPart")
 	if not root then return end
 	
+	-- Notify pusher to play animation
+	local remoteAnim = game.ReplicatedStorage:FindFirstChild("PlayAnim")
+	if remoteAnim and pusher then
+		remoteAnim:FireClient(pusher, "Push")
+	end
+	
 	-- Physics for rolling
 	local attachment = Instance.new("Attachment", root)
 	local linearVelocity = Instance.new("LinearVelocity", root)

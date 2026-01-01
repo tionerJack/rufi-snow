@@ -25,6 +25,13 @@ if not remoteHit then
 	remoteHit.Parent = ReplicatedStorage
 end
 
+local remoteAnim = ReplicatedStorage:FindFirstChild("PlayAnim")
+if not remoteAnim then
+	remoteAnim = Instance.new("RemoteEvent")
+	remoteAnim.Name = "PlayAnim"
+	remoteAnim.Parent = ReplicatedStorage
+end
+
 remoteHit.OnServerEvent:Connect(function(player, hitPart)
 	if not hitPart then return end
 	local model = hitPart:FindFirstAncestorOfClass("Model")
