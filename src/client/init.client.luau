@@ -1,17 +1,26 @@
 local ContextActionService = game:GetService("ContextActionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 
 print("--- FROST BROS DEBUG: CLIENT STARTING ---")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameConstants = require(Shared:WaitForChild("GameConstants"))
 
-local TweenService = game:GetService("TweenService")
-
 local player = Players.LocalPlayer
 local mouse = player:GetMouse()
 local lastFire = 0
+
+-- Helper to get world position from screen point (for touch)
+local function getScreenToWorld(screenPos)
+	local unitRay = workspace.CurrentCamera:ScreenPointToRay(screenPos.X, screenPos.Y)
+	local rayParams = RaycastParams.new()
+	rayParams.FilterType = Enum.RaycastFilterType.Exclude
+	local rayResult = workspace:Raycast(unitRay.Origin, unitRay.Direction * 1000)
+	return rayResult and rayResult.Position or (unitRay.Origin + unitRay.Direction * 1000)
+end
 
 -- Procedural Animation Helper
 local function playProceduralAnim(character, animType)
@@ -61,17 +70,20 @@ ReplicatedStorage:WaitForChild("PlayAnim").OnClientEvent:Connect(function(animTy
 	end
 end)
 
-local function fire()
+local function fire(targetOverride)
 	if os.clock() - lastFire < GameConstants.FIRE_RATE then return end
-	lastFire = os.clock()
 	
 	local character = player.Character
 	if not character then return end
 	local root = character:FindFirstChild("HumanoidRootPart")
 	if not root then return end
 	
+	lastFire = os.clock()
+	
 	local startPos = root.Position + root.CFrame.LookVector * 2
-	local targetPos = mouse.Hit.Position
+	local targetPos = targetOverride or mouse.Hit.Position
+	if not targetPos then return end -- Safety for touch
+	
 	local direction = (targetPos - startPos).Unit
 	
 	local projectile = Instance.new("Part")
@@ -109,10 +121,41 @@ local function fire()
 	end)
 end
 
-ContextActionService:BindAction("FireIce", function(_, state)
-	if state == Enum.UserInputState.Begin then
-		fire()
+-- ACTION BINDING WITH DELAY
+task.spawn(function()
+	task.wait(2) -- Wait for UI system
+	print("CLIENT: Binding FireIce action...")
+	
+	ContextActionService:BindAction("FireIce", function(_, state)
+		if state == Enum.UserInputState.Begin then
+			fire()
+		end
+	end, true, Enum.KeyCode.F, Enum.UserInputType.MouseButton1)
+	
+	local button = ContextActionService:GetButton("FireIce")
+	if button then
+		print("CLIENT: Mobile button created! Configuring visuals...")
+		ContextActionService:SetTitle("FireIce", "FIRE")
+		ContextActionService:SetPosition("FireIce", UDim2.new(0.5, -150, 0.5, 0)) -- Center-Left
+		button.Size = UDim2.new(0, 90, 0, 90)
+		button.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
+		
+		-- Ensure a UICorner for aesthetic
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0.5, 0)
+		corner.Parent = button
+	else
+		print("CLIENT: Warning: ContextActionService failed to create a mobile button.")
 	end
-end, false, Enum.UserInputType.MouseButton1)
+end)
+
+-- Tap to fire support for mobile
+UserInputService.InputBegan:Connect(function(input, processed)
+	if processed then return end
+	if input.UserInputType == Enum.UserInputType.Touch then
+		local target = getScreenToWorld(input.Position)
+		fire(target)
+	end
+end)
 
 print("--- FROST BROS CLIENT: GUN READY ---")
