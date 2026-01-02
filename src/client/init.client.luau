@@ -71,54 +71,76 @@ ReplicatedStorage:WaitForChild("PlayAnim").OnClientEvent:Connect(function(animTy
 end)
 
 local function fire(targetOverride)
-	if os.clock() - lastFire < GameConstants.FIRE_RATE then return end
-	
 	local character = player.Character
 	if not character or character:GetAttribute("IsFrozen") then return end
+	
+	local hasRapid = character:GetAttribute("HasRapidFire")
+	local rate = hasRapid and 0.05 or GameConstants.FIRE_RATE
+	
+	if os.clock() - lastFire < rate then return end
+	lastFire = os.clock()
+	
 	local root = character:FindFirstChild("HumanoidRootPart")
 	if not root then return end
 	
-	lastFire = os.clock()
+	local mousePos = targetOverride or getMouseWorldPos()
+	if not mousePos then return end -- Safety for touch
+	local startPos = root.Position + Vector3.new(0, 1.5, 0)
 	
-	local startPos = root.Position + root.CFrame.LookVector * 2
-	local targetPos = targetOverride or mouse.Hit.Position
-	if not targetPos then return end -- Safety for touch
+	local hasTriple = character:GetAttribute("HasTripleShot")
+	local isMega = character:GetAttribute("HasMegaBalls")
 	
-	local direction = (targetPos - startPos).Unit
-	
-	local projectile = Instance.new("Part")
-	projectile.Size = Vector3.new(0.6, 0.6, 2.5)
-	projectile.Color = Color3.fromRGB(180, 230, 255)
-	projectile.Material = Enum.Material.Neon
-	projectile.CanCollide = false
-	projectile.Anchored = true
-	projectile.CFrame = CFrame.lookAt(startPos, targetPos)
-	projectile.Parent = workspace
+	local function spawnProjectile(angleOffset)
+		local direction = (mousePos - startPos).Unit
+		if angleOffset ~= 0 then
+			direction = (CFrame.new(Vector3.zero, direction) * CFrame.Angles(0, math.rad(angleOffset), 0)).LookVector
+		end
+		
+		local projectile = Instance.new("Part")
+		projectile.Size = isMega and Vector3.new(1.8, 1.8, 4.0) or Vector3.new(0.6, 0.6, 2.5)
+		projectile.Color = isMega and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(180, 230, 255)
+		projectile.Material = Enum.Material.Neon
+		projectile.CanCollide = false
+		projectile.Anchored = true
+		projectile.CFrame = CFrame.lookAt(startPos, startPos + direction)
+		projectile.Parent = workspace
+		
+		task.spawn(function()
+			local distance = 0
+			local speed = isMega and GameConstants.PROJECTILE_SPEED * 1.5 or GameConstants.PROJECTILE_SPEED
+			while distance < GameConstants.PROJECTILE_RANGE * 2 do
+				local step = speed * task.wait()
+				distance += step
+				projectile.CFrame = projectile.CFrame * CFrame.new(0, 0, -step)
+				
+				local rayParams = RaycastParams.new()
+				rayParams.FilterDescendantsInstances = {character, projectile}
+				rayParams.FilterType = Enum.RaycastFilterType.Exclude
+				
+				local rayLength = isMega and 4 or 2
+				local result = workspace:Raycast(projectile.Position, projectile.CFrame.LookVector * rayLength, rayParams)
+				if result then
+					local remote = ReplicatedStorage:FindFirstChild("IceHit")
+					if remote then
+						remote:FireServer(result.Instance)
+					end
+					projectile:Destroy()
+					break
+				end
+			end
+			if projectile.Parent then projectile:Destroy() end
+		end)
+	end
 	
 	playProceduralAnim(character, "Fire")
 	
-	task.spawn(function()
-		local distance = 0
-		while distance < GameConstants.PROJECTILE_RANGE do
-			local step = GameConstants.PROJECTILE_SPEED * task.wait()
-			distance += step
-			projectile.CFrame = projectile.CFrame * CFrame.new(0, 0, -step)
-			
-			local rayParams = RaycastParams.new()
-			rayParams.FilterDescendantsInstances = {character, projectile}
-			rayParams.FilterType = Enum.RaycastFilterType.Exclude
-			
-			local result = workspace:Raycast(projectile.Position, projectile.CFrame.LookVector * 2, rayParams)
-			if result then
-				local remote = ReplicatedStorage:FindFirstChild("IceHit")
-				if remote then
-					remote:FireServer(result.Instance)
-				end
-				break
-			end
-		end
-		projectile:Destroy()
-	end)
+	if hasTriple then
+		spawnProjectile(-15)
+		spawnProjectile(0)
+		spawnProjectile(15)
+	else
+		spawnProjectile(0)
+	end
 end
 
 -- ACTION BINDING WITH DELAY

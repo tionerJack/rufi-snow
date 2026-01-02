@@ -17,9 +17,13 @@ marker.Parent = workspace
 local FreezeService = require(script:WaitForChild("FreezeService"))
 local BasicEnemy = require(script:WaitForChild("BasicEnemy"))
 local MapService = require(script:WaitForChild("MapService"))
+local PowerUpService = require(script:WaitForChild("PowerUpService"))
 
 -- Build Mario Arena
 MapService.BuildArena()
+
+-- Start Power-Up Loop
+PowerUpService.StartLoop()
 
 -- Setup Remotes
 local remoteHit = ReplicatedStorage:FindFirstChild("IceHit")
@@ -38,9 +42,38 @@ end
 
 remoteHit.OnServerEvent:Connect(function(player, hitPart)
 	if not hitPart then return end
-	local model = hitPart:FindFirstAncestorOfClass("Model")
-	if model and model:FindFirstChildOfClass("Humanoid") and model ~= player.Character then
-		FreezeService.ApplyHit(model)
+	local targetModel = hitPart:FindFirstAncestorOfClass("Model")
+	if not targetModel or not targetModel:FindFirstChildOfClass("Humanoid") then return end
+	if targetModel == player.Character then return end
+	
+	-- SHIELD: Target is immune
+	if targetModel:GetAttribute("HasShield") then 
+		print("FREEZE: Hit ignored due to SHIELD on " .. targetModel.Name)
+		return 
+	end
+
+	local char = player.Character
+	local isMega = char and char:GetAttribute("HasMegaBalls")
+	local isExplosive = char and char:GetAttribute("HasExplosiveBalls")
+	
+	local function applyForceHit(model, mult)
+		for i = 1, mult or 1 do
+			FreezeService.ApplyHit(model)
+		end
+	end
+
+	if isExplosive then
+		-- Area of Effect
+		local pos = hitPart.Position
+		print("FREEZE: Explosive hit at " .. tostring(pos))
+		for _, part in ipairs(workspace:GetPartBoundsInRadius(pos, 12)) do
+			local m = part:FindFirstAncestorOfClass("Model")
+			if m and m:FindFirstChildOfClass("Humanoid") and m ~= char then
+				applyForceHit(m, isMega and 3 or 1)
+			end
+		end
+	else
+		applyForceHit(targetModel, isMega and 3 or 1)
 	end
 end)
 
