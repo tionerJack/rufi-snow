@@ -43,11 +43,25 @@ function FreezeService.ApplyHit(char)
 	local humanoid = char:FindFirstChildOfClass("Humanoid")
 	if not humanoid or humanoid.Health <= 0 then return end
 	
+	-- PROTECTION CHECK: Shield/Invincibility blocks ALL freeze hits
+	if char:GetAttribute("HasShield") or char:GetAttribute("IsInvincible") then
+		print(string.format("FREEZE BLOCKED: %s is immune!", char.Name))
+		return
+	end
+	
 	local isPlayer = Players:GetPlayerFromCharacter(char)
 	print(string.format("FREEZE: Hit %s (%s)", char.Name, isPlayer and "Player" or "Enemy"))
 	
+	-- RESISTANCE CHECK: Giants and Titans are harder to freeze
+	local hitWeight = 1
+	if char:GetAttribute("IsTitan") then
+		hitWeight = 0.25
+	elseif char:GetAttribute("IsGiant") then
+		hitWeight = 0.5
+	end
+	
 	local currentHits = char:GetAttribute("FreezeHits") or 0
-	currentHits = math.min(currentHits + 1, GameConstants.FREEZE_HITS_REQUIRED)
+	currentHits = math.min(currentHits + hitWeight, GameConstants.FREEZE_HITS_REQUIRED)
 	char:SetAttribute("FreezeHits", currentHits)
 	
 	if currentHits >= GameConstants.FREEZE_HITS_REQUIRED then

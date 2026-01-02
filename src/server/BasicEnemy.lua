@@ -38,6 +38,13 @@ function BasicEnemy.new(model)
 		else
 			-- DEADLY TOUCH (Kill player if not frozen)
 			if not self.model:GetAttribute("IsRolling") then
+				-- INVULNERABILITY CHECK (Now includes Giants/Titans)
+				if character:GetAttribute("HasShield") or character:GetAttribute("IsInvincible") or 
+				   character:GetAttribute("IsGiant") or character:GetAttribute("IsTitan") then
+					print(string.format("KILL BLOCKED: %s is too BIG/PROTECTED to die from touch!", player.Name))
+					return
+				end
+				
 				print(string.format("KILLING PLAYER: %s touched by %s", player.Name, self.model.Name))
 				humanoid.Health = 0
 			end

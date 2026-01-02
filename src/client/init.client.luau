@@ -12,8 +12,35 @@ local GameConstants = require(Shared:WaitForChild("GameConstants"))
 local player = Players.LocalPlayer
 local mouse = player:GetMouse()
 local lastFire = 0
+local activePowerHUD = nil
+local activeTweens = {}
 
--- Helper to get world position from screen point (for touch)
+-- HUD Death Cleanup & Scale Monitoring
+local function setupCharacterListeners(char)
+	local hum = char:WaitForChild("Humanoid")
+	hum.Died:Connect(function()
+		if activePowerHUD then
+			activePowerHUD:Destroy()
+			activePowerHUD = nil
+		end
+	end)
+	
+	-- Monitor scale changes to prevent arm dislocation
+	char.AttributeChanged:Connect(function(attr)
+		if attr == "BodyHeightScale" or attr == "BodyWidthScale" then
+			-- Invalidate cache
+			shoulderC0Cache[char] = nil
+			-- Cancel any ongoing procedural animations that might be using old scale data
+			if activeTweens[char] then
+				for _, t in ipairs(activeTweens[char]) do t:Cancel() end
+				activeTweens[char] = nil
+			end
+		end
+	end)
+end
+
+if player.Character then setupCharacterListeners(player.Character) end
+player.CharacterAdded:Connect(setupCharacterListeners)
 local function getScreenToWorld(screenPos)
 	local unitRay = workspace.CurrentCamera:ScreenPointToRay(screenPos.X, screenPos.Y)
 	local rayResult = workspace:Raycast(unitRay.Origin, unitRay.Direction * 1000)
@@ -24,8 +51,6 @@ local function getMouseWorldPos()
 	local pos = mouse.Hit.Position
 	return pos
 end
-
-local activePowerHUD = nil
 
 -- UI Notification System
 local function showAnnouncement(playerName, powerKey, actionType)
@@ -118,7 +143,9 @@ local shoulderC0Cache = {}
 
 -- Procedural Animation Helper
 local function playProceduralAnim(character, animType)
-	local isR15 = character.Humanoid.RigType == Enum.HumanoidRigType.R15
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not humanoid then return end
+	local isR15 = humanoid.RigType == Enum.HumanoidRigType.R15
 	local rightShoulder = isR15 and character:FindFirstChild("RightUpperArm", true) and character.RightUpperArm:FindFirstChild("RightShoulder") 
 						or character:FindFirstChild("Right Shoulder", true)
 	local leftShoulder = isR15 and character:FindFirstChild("LeftUpperArm", true) and character.LeftUpperArm:FindFirstChild("LeftShoulder")
@@ -126,11 +153,19 @@ local function playProceduralAnim(character, animType)
 	
 	if not rightShoulder or not rightShoulder:IsA("Motor6D") then return end
 	
-	-- CACHE ORIGINAL C0 to prevent "dislocation" drift
+	-- SCALE-AWARE CACHING
+	-- We invalidate the cache if the character's height scale has changed
+	local currentScale = character:GetAttribute("BodyHeightScale") or 1
+	if shoulderC0Cache[character] and shoulderC0Cache[character].scale ~= currentScale then
+		-- Clear cache to re-capture correct anatomical C0 at this scale
+		shoulderC0Cache[character] = nil
+	end
+
 	if not shoulderC0Cache[character] then
 		shoulderC0Cache[character] = {
 			right = rightShoulder.C0,
-			left = leftShoulder and leftShoulder.C0
+			left = leftShoulder and leftShoulder.C0,
+			scale = currentScale
 		}
 		-- Cleanup when character leaves
 		character.AncestryChanged:Connect(function(_, parent)
@@ -142,26 +177,34 @@ local function playProceduralAnim(character, animType)
 	local leftOrigC0 = shoulderC0Cache[character].left
 	
 	if animType == "Fire" then
+		activeTweens[character] = {}
 		-- Snappy throw (Right arm only)
 		local targetC0 = rightOrigC0 * CFrame.new(0, 0, -1) * CFrame.Angles(math.rad(90), 0, 0)
 		local t1 = TweenService:Create(rightShoulder, TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {C0 = targetC0})
 		local t2 = TweenService:Create(rightShoulder, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {C0 = rightOrigC0})
+		table.insert(activeTweens[character], t1)
+		table.insert(activeTweens[character], t2)
 		t1:Play()
 		t1.Completed:Connect(function() t2:Play() end)
 		
 	elseif animType == "Push" then
+		activeTweens[character] = {}
 		-- Both arms forward push
 		local rTarget = rightOrigC0 * CFrame.new(0, 0, -1.2) * CFrame.Angles(math.rad(90), 0, 0)
 		local lTarget = leftOrigC0 and (leftOrigC0 * CFrame.new(0, 0, -1.2) * CFrame.Angles(math.rad(90), 0, 0))
 		
 		local rt1 = TweenService:Create(rightShoulder, TweenInfo.new(0.1, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {C0 = rTarget})
 		local rt2 = TweenService:Create(rightShoulder, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {C0 = rightOrigC0})
+		table.insert(activeTweens[character], rt1)
+		table.insert(activeTweens[character], rt2)
 		rt1:Play()
 		rt1.Completed:Connect(function() rt2:Play() end)
 		
 		if leftShoulder and lTarget then
 			local lt1 = TweenService:Create(leftShoulder, TweenInfo.new(0.1, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {C0 = lTarget})
 			local lt2 = TweenService:Create(leftShoulder, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {C0 = leftOrigC0})
+			table.insert(activeTweens[character], lt1)
+			table.insert(activeTweens[character], lt2)
 			lt1:Play()
 			lt1.Completed:Connect(function() lt2:Play() end)
 		end
@@ -230,8 +273,20 @@ local function fire(targetOverride)
 		
 		local projectile = Instance.new("Part")
 		local isBeam = character:GetAttribute("HasFreezeBeam")
-		projectile.Size = isBeam and Vector3.new(1, 1, 20) or (isMega and Vector3.new(1.8, 1.8, 4.0) or Vector3.new(0.6, 0.6, 2.5))
-		projectile.Color = isBeam and Color3.fromRGB(0, 191, 255) or (isMega and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(180, 230, 255))
+		local isShrink = character:GetAttribute("HasShrinkRay")
+		local isExplo = character:GetAttribute("HasExplosiveBalls")
+		
+		projectile.Size = isBeam and Vector3.new(1, 1, 20) 
+			or (isShrink and Vector3.new(0.4, 0.4, 1.2)
+			or (isMega and Vector3.new(1.8, 1.8, 4.0) 
+			or Vector3.new(0.6, 0.6, 2.5)))
+			
+		projectile.Color = isBeam and Color3.fromRGB(0, 191, 255) 
+			or (isShrink and Color3.fromRGB(0, 255, 0)
+			or (isExplo and Color3.fromRGB(255, 100, 0)
+			or (isMega and Color3.fromRGB(255, 0, 0) 
+			or Color3.fromRGB(180, 230, 255))))
+			
 		projectile.Material = Enum.Material.Neon
 		projectile.CanCollide = false
 		projectile.Anchored = true

@@ -93,6 +93,7 @@ function PowerUpService.ApplyBuff(character, powerKey)
 			humanoid.BodyDepthScale.Value *= 2
 			humanoid.HeadScale.Value *= 2
 		end
+		character:SetAttribute("IsGiant", true)
 		humanoid.JumpPower = 75 -- Scale jump with size
 	elseif powerKey == "SPEED" then
 		humanoid.WalkSpeed = 45
@@ -198,6 +199,17 @@ function PowerUpService.ApplyBuff(character, powerKey)
 		end
 	elseif powerKey == "AURA" then
 		character:SetAttribute("HasIceAura", true)
+		local p = Instance.new("ParticleEmitter")
+		p.Name = "IceAuraEffect"
+		p.Color = ColorSequence.new(Color3.fromRGB(0, 255, 255))
+		p.Size = NumberSequence.new(3, 0)
+		p.Transparency = NumberSequence.new(0.5, 1)
+		p.Lifetime = NumberRange.new(1.5)
+		p.Rate = 10
+		p.Speed = NumberRange.new(0)
+		p.LockedToPart = true
+		p.Texture = "rbxassetid://6071575923"
+		p.Parent = character:FindFirstChild("HumanoidRootPart")
 	elseif powerKey == "SLOMO" then
 		character:SetAttribute("HasSloMo", true)
 	elseif powerKey == "REGEN" then
@@ -257,6 +269,7 @@ function PowerUpService.ApplyBuff(character, powerKey)
 			humanoid.BodyDepthScale.Value = 4
 			humanoid.HeadScale.Value = 4
 		end
+		character:SetAttribute("IsTitan", true)
 		humanoid.JumpPower = 100
 	elseif powerKey == "PULL" then
 		character:SetAttribute("HasMagneticPull", true)
@@ -312,9 +325,30 @@ function PowerUpService.RemoveBuff(character)
 	
 	-- ABILITY: Time Recall (Teleport back on expiration)
 	if character:GetAttribute("HasTimeRecall") then
-		local rPos = character:GetAttribute("RecallPos")
-		if rPos then
-			character:SetPrimaryPartCFrame(CFrame.new(rPos))
+		local oldPos = character:GetAttribute("RecallPos")
+		if oldPos and character.PrimaryPart then
+			-- Visual Flash at old position
+			local flash = Instance.new("Part")
+			flash.Size = Vector3.new(5, 5, 5)
+			flash.Shape = Enum.PartType.Ball
+			flash.Color = Color3.fromRGB(0, 255, 255)
+			flash.Material = Enum.Material.Neon
+			flash.Transparency = 0.5
+			flash.Anchored = true flash.CanCollide = false
+			flash.CFrame = character.PrimaryPart.CFrame
+			flash.Parent = workspace
+			
+			character:SetPrimaryPartCFrame(CFrame.new(oldPos))
+			
+			-- Visual Flash at new position
+			local flash2 = flash:Clone()
+			flash2.CFrame = character.PrimaryPart.CFrame
+			flash2.Parent = workspace
+			
+			local TweenService = game:GetService("TweenService") -- Assuming TweenService is not globally defined, get it here.
+			TweenService:Create(flash, TweenInfo.new(0.5), {Size = Vector3.new(0, 0, 0), Transparency = 1}):Play()
+			TweenService:Create(flash2, TweenInfo.new(0.5), {Size = Vector3.new(10, 10, 10), Transparency = 1}):Play()
+			task.delay(0.5, function() if flash then flash:Destroy() end if flash2 then flash2:Destroy() end end)
 		end
 	end
 	
@@ -377,6 +411,8 @@ function PowerUpService.RemoveBuff(character)
 	if gf then gf:Destroy() end
 	local pa = character:FindFirstChild("HumanoidRootPart") and character.HumanoidRootPart:FindFirstChild("PowerAura")
 	if pa then pa:Destroy() end
+	local iae = character:FindFirstChild("HumanoidRootPart") and character.HumanoidRootPart:FindFirstChild("IceAuraEffect")
+	if iae then iae:Destroy() end
 	
 	for _, v in ipairs(character:GetChildren()) do
 		if v.Name == "MirageDecoy" or v.Name == "MasterClone" then v:Destroy() end
