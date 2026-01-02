@@ -1,6 +1,9 @@
 local RunService = game:GetService("RunService")
 local ServerScriptService = game:GetService("ServerScriptService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RollLogic = require(ServerScriptService.Server:WaitForChild("RollLogic"))
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local GameConstants = require(Shared:WaitForChild("GameConstants"))
 
 local BasicEnemy = {}
 
@@ -109,7 +112,8 @@ local PathfindingService = game:GetService("PathfindingService")
 					end
 				else
 					-- ACTIVE WANDER
-					local targetPos = Vector3.new(math.random(-55, 55), self.root.Position.Y, math.random(-55, 55))
+					local spawnRadius = GameConstants.ARENA_SIZE / 2.2
+					local targetPos = Vector3.new(math.random(-spawnRadius, spawnRadius), self.root.Position.Y, math.random(-spawnRadius, spawnRadius))
 					self.humanoid:MoveTo(targetPos)
 				end
 			else

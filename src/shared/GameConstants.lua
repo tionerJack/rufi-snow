@@ -6,7 +6,8 @@ local GameConstants = {
 	ROLL_DURATION = 4,
 	FIRE_RATE = 0.3,
 	PROJECTILE_SPEED = 100,
-	PROJECTILE_RANGE = 50,
+	PROJECTILE_RANGE = 100, -- Increased for bigger map
+	ARENA_SIZE = 250,
 	BALL_DAMAGE = 100, -- Instakill basic enemies
 	PUSHER_IMMUNITY_DURATION = 1.0,
 	

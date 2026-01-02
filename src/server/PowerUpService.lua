@@ -23,8 +23,16 @@ local function spawnPotion()
 	potion.CanCollide = false
 	potion:SetAttribute("PowerType", chosenKey)
 	
-	-- Random pos
-	potion.Position = Vector3.new(math.random(-50, 50), 3, math.random(-50, 50))
+	local CollectionService = game:GetService("CollectionService")
+	local peaks = CollectionService:GetTagged("PyramidPeak")
+	
+	if #peaks == 0 then
+		print("POWERUP: Error - No PyramidPeaks found in workspace!")
+		return
+	end
+	
+	local targetPeak = peaks[math.random(1, #peaks)]
+	potion.Position = targetPeak.Position + Vector3.new(0, 6, 0)
 	potion.Parent = workspace
 	
 	-- Visual Floating
