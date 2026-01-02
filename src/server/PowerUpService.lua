@@ -138,25 +138,44 @@ function PowerUpService.ApplyBuff(character, powerKey)
 	elseif powerKey == "GRAVITY" then
 		humanoid.JumpPower = 150
 		character:SetAttribute("HasAntiGravity", true)
+		character:SetAttribute("HasLowGravity", true)
 	elseif powerKey == "FROSTBIT" then
 		character:SetAttribute("HasFrostTrail", true)
 	elseif powerKey == "VORTEX" then
 		character:SetAttribute("HasVortexPower", true)
 	elseif powerKey == "MIRAGE" then
 		character:SetAttribute("HasMirage", true)
-		-- Simple clones logic (just visual parts for now)
-		for i = 1, 2 do
+		local CollectionService = game:GetService("CollectionService")
+		for i = 1, 3 do
 			local decoy = Instance.new("Part")
 			decoy.Name = "MirageDecoy"
-			decoy.Size = Vector3.new(4, 6, 4)
-			decoy.Transparency = 0.5
+			decoy.Size = Vector3.new(2, 5, 2)
+			decoy.Transparency = 0.4
 			decoy.Color = data.Color
-			decoy.CFrame = character.PrimaryPart.CFrame * CFrame.new(math.random(-10, 10), 0, math.random(-10, 10))
+			decoy.Material = Enum.Material.Neon
+			decoy.CFrame = character.PrimaryPart.CFrame * CFrame.new(math.random(-15, 15), 0, math.random(-15, 15))
 			decoy.Anchored = true
 			decoy.CanCollide = false
 			decoy.CanTouch = false
-			decoy.Parent = character
-			task.delay(15, function() if decoy then decoy:Destroy() end end)
+			decoy.Parent = workspace
+			CollectionService:AddTag(decoy, "Decoy")
+			
+			-- Add ghostly particle
+			local p = Instance.new("ParticleEmitter")
+			p.Color = ColorSequence.new(data.Color)
+			p.Size = NumberSequence.new(1, 0)
+			p.Transparency = NumberSequence.new(0.5, 1)
+			p.Lifetime = NumberRange.new(1)
+			p.Rate = 20
+			p.Texture = "rbxassetid://6071575923"
+			p.Parent = decoy
+			
+			-- Pulsing Animation
+			local tInfo = TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
+			local pulse = TweenService:Create(decoy, tInfo, {Transparency = 0.8, Size = decoy.Size * 1.2})
+			pulse:Play()
+			
+			task.delay(GameConstants.POWERUP_DURATION, function() if decoy then decoy:Destroy() end end)
 		end
 	elseif powerKey == "GOD" then
 		character:SetAttribute("IsInvincible", true)
@@ -200,21 +219,32 @@ function PowerUpService.ApplyBuff(character, powerKey)
 		humanoid.WalkSpeed = 80
 	elseif powerKey == "CLONE" then
 		character:SetAttribute("HasMasterClones", true)
-		for i = 1, 3 do
+		local CollectionService = game:GetService("CollectionService")
+		for i = 1, 4 do
 			local decoy = Instance.new("Part")
 			decoy.Name = "MasterClone"
-			decoy.Size = Vector3.new(4, 6, 4)
+			decoy.Size = Vector3.new(2, 5, 2)
 			decoy.Color = data.Color
 			decoy.Material = Enum.Material.Ice
-			decoy.CFrame = character.PrimaryPart.CFrame * CFrame.new(math.random(-15, 15), 0, math.random(-15, 15))
+			decoy.CFrame = character.PrimaryPart.CFrame * CFrame.new(math.random(-20, 20), 0, math.random(-20, 20))
 			decoy.Anchored = false
 			decoy.CanCollide = false
 			decoy.CanTouch = false
-			decoy.Parent = character
+			decoy.Parent = workspace
+			CollectionService:AddTag(decoy, "Decoy")
+			
 			local bp = Instance.new("BodyPosition")
-			bp.MaxForce = Vector3.new(1, 0, 1) * 10000
+			bp.MaxForce = Vector3.new(1, 0, 1) * 20000
 			bp.Position = decoy.Position
 			bp.Parent = decoy
+			
+			-- Particle for clone
+			local p = Instance.new("ParticleEmitter")
+			p.Color = ColorSequence.new(data.Color)
+			p.Texture = "rbxassetid://6071575923"
+			p.Parent = decoy
+			
+			task.delay(GameConstants.POWERUP_DURATION, function() if decoy then decoy:Destroy() end end)
 		end
 	elseif powerKey == "VENOM" then
 		character:SetAttribute("HasVenom", true)
@@ -247,6 +277,22 @@ function PowerUpService.ApplyBuff(character, powerKey)
 	elseif powerKey == "TIME" then
 		character:SetAttribute("HasTimeRecall", true)
 		character:SetAttribute("RecallPos", character.PrimaryPart.Position)
+	end
+	
+	-- Premium Visual: Power Aura (Color-Coded)
+	local root = character:FindFirstChild("HumanoidRootPart")
+	if root then
+		local p = Instance.new("ParticleEmitter")
+		p.Name = "PowerAura"
+		p.Color = ColorSequence.new(data.Color)
+		p.LightEmission = 0.8
+		p.Size = NumberSequence.new({NumberSequenceKeypoint.new(0, 1.2), NumberSequenceKeypoint.new(1, 0)})
+		p.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(1, 1)})
+		p.Speed = NumberRange.new(2, 5)
+		p.Lifetime = NumberRange.new(0.5, 1.2)
+		p.Acceleration = Vector3.new(0, 5, 0)
+		p.Texture = "rbxassetid://6071575923" -- Sparkly Snow/Spark
+		p.Parent = root
 	end
 	
 	-- Global Cleanup logic
@@ -329,6 +375,8 @@ function PowerUpService.RemoveBuff(character)
 	if bv then bv:Destroy() end
 	local gf = character:FindFirstChild("HumanoidRootPart") and character.HumanoidRootPart:FindFirstChild("GhostFire")
 	if gf then gf:Destroy() end
+	local pa = character:FindFirstChild("HumanoidRootPart") and character.HumanoidRootPart:FindFirstChild("PowerAura")
+	if pa then pa:Destroy() end
 	
 	for _, v in ipairs(character:GetChildren()) do
 		if v.Name == "MirageDecoy" or v.Name == "MasterClone" then v:Destroy() end
@@ -474,6 +522,14 @@ function PowerUpService.StartLoop()
 							char:SetAttribute("HitsTaken", hits - 0.2) -- Slow heal
 						end
 					end
+					
+					-- 9. Low Gravity (Slow Fall)
+					if char:GetAttribute("HasLowGravity") then
+						if root.AssemblyLinearVelocity.Y < -5 then
+							root:ApplyImpulse(Vector3.new(0, 200, 0)) -- Gentle lift
+						end
+					end
+					
 					-- 8. Blizzard (Area control)
 					if char:GetAttribute("HasBlizzard") then
 						local lastBliz = char:GetAttribute("LastBlizTime") or 0

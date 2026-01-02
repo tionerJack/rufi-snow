@@ -72,14 +72,13 @@ local PathfindingService = game:GetService("PathfindingService")
 		end
 		
 		-- 2. Check Decoys (Distraction)
-		for _, v in ipairs(workspace:GetDescendants()) do
-			if v.Name == "MirageDecoy" or v.Name == "MasterClone" then
-				if v:IsA("BasePart") then
-					local dist = (self.root.Position - v.Position).Magnitude
-					if dist < shortestDistance then
-						shortestDistance = dist
-						closestTarget = v
-					end
+		local CollectionService = game:GetService("CollectionService")
+		for _, v in ipairs(CollectionService:GetTagged("Decoy")) do
+			if v:IsA("BasePart") then
+				local dist = (self.root.Position - v.Position).Magnitude
+				if dist < shortestDistance then
+					shortestDistance = dist
+					closestTarget = v
 				end
 			end
 		end

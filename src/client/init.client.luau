@@ -25,6 +25,8 @@ local function getMouseWorldPos()
 	return pos
 end
 
+local activePowerHUD = nil
+
 -- UI Notification System
 local function showAnnouncement(playerName, powerKey, actionType)
 	local data = GameConstants.POWERUP_TYPES[powerKey]
@@ -52,14 +54,61 @@ local function showAnnouncement(playerName, powerKey, actionType)
 	label.TextStrokeTransparency = 0.5
 	label.Parent = gui
 	
-	-- Animation
+	-- Manage LOCAL PLAYER HUD
+	if actionType == "COLLECT" and playerName == player.Name then
+		if activePowerHUD then activePowerHUD:Destroy() end
+		
+		local hud = Instance.new("Frame")
+		hud.Name = "PowerUpHUD"
+		hud.Size = UDim2.new(0, 200, 0, 50)
+		hud.Position = UDim2.new(1, -220, 0.05, 0) -- Top Right
+		hud.BackgroundColor3 = Color3.fromRGB(10, 20, 30)
+		hud.BackgroundTransparency = 0.4
+		hud.Parent = gui
+		activePowerHUD = hud
+		
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 10)
+		corner.Parent = hud
+		
+		local stroke = Instance.new("UIStroke")
+		stroke.Thickness = 3
+		stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		stroke.Color = data.Color
+		stroke.Parent = hud
+		
+		local textLabel = Instance.new("TextLabel")
+		textLabel.Size = UDim2.new(1, 0, 1, 0)
+		textLabel.BackgroundTransparency = 1
+		textLabel.Font = Enum.Font.FredokaOne
+		textLabel.TextColor3 = Color3.new(1, 1, 1)
+		textLabel.TextSize = 18
+		textLabel.Text = string.format("%s\n%.1fs", data.Name:upper(), GameConstants.POWERUP_DURATION)
+		textLabel.Parent = hud
+		
+		task.spawn(function()
+			local timeLeft = GameConstants.POWERUP_DURATION
+			while timeLeft > 0 and hud.Parent do
+				timeLeft -= task.wait(0.1)
+				textLabel.Text = string.format("%s\n%.1fs", data.Name:upper(), math.max(0, timeLeft))
+				if timeLeft < 3 then
+					textLabel.TextColor3 = (math.floor(timeLeft * 10) % 2 == 0) and Color3.new(1, 0, 0) or Color3.new(1, 1, 1)
+				end
+			end
+			if hud.Parent then hud:Destroy() end
+		end)
+	end
+
+	-- Global Animation (Label)
 	local tweenIn = TweenService:Create(label, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0.2, 0, 0.1, 0)})
 	local tweenOut = TweenService:Create(label, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Position = UDim2.new(0.2, 0, -0.2, 0)})
 	
 	tweenIn:Play()
 	task.delay(3, function()
-		tweenOut:Play()
-		tweenOut.Completed:Connect(function() label:Destroy() end)
+		if label and label.Parent then
+			tweenOut:Play()
+			tweenOut.Completed:Connect(function() if label then label:Destroy() end end)
+		end
 	end)
 end
 
