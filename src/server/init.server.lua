@@ -118,10 +118,36 @@ remoteHit.OnServerEvent:Connect(function(player, hitPart)
 			end
 			
 			if isShrink then
-				if hum.RigType == Enum.HumanoidRigType.R15 then
-					hum.BodyHeightScale.Value *= 0.7
-					hum.BodyWidthScale.Value *= 0.7
+				print("SHRINK: Reducing " .. model.Name)
+				local factor = 0.7
+				
+				-- 1. R15 Player Scaling
+				if hum:FindFirstChild("BodyHeightScale") then
+					hum.BodyHeightScale.Value *= factor
+					hum.BodyWidthScale.Value *= factor
+					hum.BodyDepthScale.Value *= factor
+					hum.HeadScale.Value *= factor
+				else
+					-- 2. Custom Model Scaling (Enemies)
+					for _, p in ipairs(model:GetDescendants()) do
+						if p:IsA("BasePart") then
+							p.Size *= factor
+						elseif p:IsA("Motor6D") then
+							local c0 = p.C0
+							local c1 = p.C1
+							p.C0 = CFrame.new(c0.Position * factor) * (c0 - c0.Position)
+							p.C1 = CFrame.new(c1.Position * factor) * (c1 - c1.Position)
+						end
+					end
 				end
+				
+				-- Visual: Green Flash
+				local highlight = Instance.new("Highlight")
+				highlight.FillColor = Color3.fromRGB(0, 255, 0)
+				highlight.FillTransparency = 0.5
+				highlight.OutlineTransparency = 1
+				highlight.Parent = model
+				task.delay(0.5, function() highlight:Destroy() end)
 			end
 			
 			if isBerserk then
@@ -150,10 +176,23 @@ remoteHit.OnServerEvent:Connect(function(player, hitPart)
 
 	if isExplosive then
 		local pos = hitPart.Position
-		for _, part in ipairs(workspace:GetPartBoundsInRadius(pos, 12)) do
+		print(string.format("EXPLOSION: %s triggered blast at %s", player.Name, tostring(pos)))
+		
+		-- Visual Explosion
+		local exp = Instance.new("Explosion")
+		exp.Position = pos
+		exp.BlastRadius = 0 -- We handle the impact manually
+		exp.DestroyJointRadiusPercent = 0
+		exp.Parent = workspace
+		
+		for _, part in ipairs(workspace:GetPartBoundsInRadius(pos, 15)) do
 			local m = part:FindFirstAncestorOfClass("Model")
 			if m and m:FindFirstChildOfClass("Humanoid") and m ~= char then
 				applyForceHit(m, isMega and 3 or 1)
+				-- Extra Damage for enemies
+				if not Players:GetPlayerFromCharacter(m) then
+					m.Humanoid:TakeDamage(10)
+				end
 			end
 		end
 	else

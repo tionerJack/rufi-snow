@@ -3,6 +3,7 @@ local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameConstants = require(Shared:WaitForChild("GameConstants"))
+local FreezeService = require(script.Parent.FreezeService)
 
 local PowerUpService = {}
 local nextSpawnTime = 0
@@ -148,35 +149,58 @@ function PowerUpService.ApplyBuff(character, powerKey)
 		character:SetAttribute("HasMirage", true)
 		local CollectionService = game:GetService("CollectionService")
 		for i = 1, 3 do
-			local decoy = Instance.new("Part")
-			decoy.Name = "MirageDecoy"
-			decoy.Size = Vector3.new(2, 5, 2)
-			decoy.Transparency = 0.4
-			decoy.Color = data.Color
-			decoy.Material = Enum.Material.Neon
-			decoy.CFrame = character.PrimaryPart.CFrame * CFrame.new(math.random(-15, 15), 0, math.random(-15, 15))
-			decoy.Anchored = true
-			decoy.CanCollide = false
-			decoy.CanTouch = false
-			decoy.Parent = workspace
-			CollectionService:AddTag(decoy, "Decoy")
+			local decoyModel = Instance.new("Model")
+			decoyModel.Name = "MirageDecoy"
 			
-			-- Add ghostly particle
+			local torso = Instance.new("Part")
+			torso.Name = "Torso"
+			torso.Size = Vector3.new(2, 3, 1)
+			torso.Color = data.Color
+			torso.Material = Enum.Material.Neon
+			torso.Transparency = 0.6
+			torso.Anchored = true
+			torso.CanCollide = false
+			torso.CFrame = character.PrimaryPart.CFrame * CFrame.new(math.random(-20, 20), 0, math.random(-20, 20))
+			torso.Parent = decoyModel
+			
+			local head = Instance.new("Part")
+			head.Name = "Head"
+			head.Shape = Enum.PartType.Ball
+			head.Size = Vector3.new(1.2, 1.2, 1.2)
+			head.Color = data.Color
+			head.Material = Enum.Material.Neon
+			head.Transparency = 0.5
+			head.Anchored = true
+			head.CanCollide = false
+			head.CFrame = torso.CFrame * CFrame.new(0, 2.2, 0)
+			head.Parent = decoyModel
+			
+			decoyModel.Parent = workspace
+			CollectionService:AddTag(torso, "Decoy")
+			
+			-- Aggro Particle (Radial Pulse)
 			local p = Instance.new("ParticleEmitter")
 			p.Color = ColorSequence.new(data.Color)
-			p.Size = NumberSequence.new(1, 0)
-			p.Transparency = NumberSequence.new(0.5, 1)
-			p.Lifetime = NumberRange.new(1)
-			p.Rate = 20
+			p.Size = NumberSequence.new(0.5, 2)
+			p.Transparency = NumberSequence.new(0, 1)
+			p.Lifetime = NumberRange.new(2)
+			p.Rate = 15
+			p.Speed = NumberRange.new(5, 10)
 			p.Texture = "rbxassetid://6071575923"
-			p.Parent = decoy
+			p.Parent = torso
 			
-			-- Pulsing Animation
-			local tInfo = TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
-			local pulse = TweenService:Create(decoy, tInfo, {Transparency = 0.8, Size = decoy.Size * 1.2})
-			pulse:Play()
+			-- Holographic Pulse Animation
+			task.spawn(function()
+				while decoyModel.Parent do
+					local t = os.clock()
+					local pulse = 0.5 + math.sin(t * 10) * 0.2
+					torso.Transparency = pulse
+					head.Transparency = pulse
+					task.wait(0.05)
+				end
+			end)
 			
-			task.delay(GameConstants.POWERUP_DURATION, function() if decoy then decoy:Destroy() end end)
+			task.delay(GameConstants.POWERUP_DURATION, function() if decoyModel then decoyModel:Destroy() end end)
 		end
 	elseif powerKey == "GOD" then
 		character:SetAttribute("IsInvincible", true)
@@ -233,30 +257,74 @@ function PowerUpService.ApplyBuff(character, powerKey)
 		character:SetAttribute("HasMasterClones", true)
 		local CollectionService = game:GetService("CollectionService")
 		for i = 1, 4 do
-			local decoy = Instance.new("Part")
-			decoy.Name = "MasterClone"
-			decoy.Size = Vector3.new(2, 5, 2)
-			decoy.Color = data.Color
-			decoy.Material = Enum.Material.Ice
-			decoy.CFrame = character.PrimaryPart.CFrame * CFrame.new(math.random(-20, 20), 0, math.random(-20, 20))
-			decoy.Anchored = false
-			decoy.CanCollide = false
-			decoy.CanTouch = false
-			decoy.Parent = workspace
-			CollectionService:AddTag(decoy, "Decoy")
+			local decoyModel = Instance.new("Model")
+			decoyModel.Name = "MasterClone"
 			
+			local torso = Instance.new("Part")
+			torso.Name = "Torso"
+			torso.Size = Vector3.new(2, 3, 1)
+			torso.Color = data.Color
+			torso.Material = Enum.Material.Ice
+			torso.Transparency = 0.3
+			torso.Anchored = false
+			torso.CanCollide = false
+			torso.CFrame = character.PrimaryPart.CFrame * CFrame.new(math.random(-25, 25), 0, math.random(-25, 25))
+			torso.Parent = decoyModel
+			
+			local head = Instance.new("Part")
+			head.Name = "Head"
+			head.Shape = Enum.PartType.Ball
+			head.Size = Vector3.new(1.2, 1.2, 1.2)
+			head.Color = data.Color
+			head.Material = Enum.Material.Ice
+			head.Transparency = 0.2
+			head.Anchored = false
+			head.CanCollide = false
+			head.Parent = decoyModel
+			
+			local weld = Instance.new("WeldConstraint")
+			weld.Part0 = torso
+			weld.Part1 = head
+			head.CFrame = torso.CFrame * CFrame.new(0, 2.2, 0)
+			weld.Parent = torso
+
+			decoyModel.Parent = workspace
+			CollectionService:AddTag(torso, "Decoy")
+			
+			-- Floating Logic
 			local bp = Instance.new("BodyPosition")
-			bp.MaxForce = Vector3.new(1, 0, 1) * 20000
-			bp.Position = decoy.Position
-			bp.Parent = decoy
+			bp.MaxForce = Vector3.new(1, 1, 1) * 20000
+			bp.Position = torso.Position + Vector3.new(0, 1, 0)
+			bp.Parent = torso
 			
-			-- Particle for clone
+			local bg = Instance.new("BodyGyro")
+			bg.MaxTorque = Vector3.new(1, 1, 1) * 10000
+			bg.CFrame = torso.CFrame
+			bg.Parent = torso
+			
+			-- Frost Flow Particle
 			local p = Instance.new("ParticleEmitter")
 			p.Color = ColorSequence.new(data.Color)
+			p.Size = NumberSequence.new(0.4, 0)
+			p.Transparency = NumberSequence.new(0, 1)
+			p.Lifetime = NumberRange.new(1, 2)
+			p.Rate = 25
+			p.Speed = NumberRange.new(2, 5)
+			p.VelocitySpread = 360
 			p.Texture = "rbxassetid://6071575923"
-			p.Parent = decoy
+			p.Parent = torso
 			
-			task.delay(GameConstants.POWERUP_DURATION, function() if decoy then decoy:Destroy() end end)
+			-- Rotation Task
+			task.spawn(function()
+				while decoyModel.Parent do
+					if bg and bg.Parent then
+						bg.CFrame = bg.CFrame * CFrame.Angles(0, math.rad(3), 0)
+					end
+					task.wait(0.05)
+				end
+			end)
+			
+			task.delay(GameConstants.POWERUP_DURATION, function() if decoyModel then decoyModel:Destroy() end end)
 		end
 	elseif powerKey == "VENOM" then
 		character:SetAttribute("HasVenom", true)
@@ -386,6 +454,8 @@ function PowerUpService.RemoveBuff(character)
 	character:SetAttribute("HasTimeRecall", nil)
 	character:SetAttribute("RecallPos", nil)
 	character:SetAttribute("IsInvincible", nil)
+	character:SetAttribute("IsGiant", nil)
+	character:SetAttribute("IsTitan", nil)
 	
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	if humanoid then
@@ -525,18 +595,44 @@ function PowerUpService.StartLoop()
 						end
 					end
 					
-					-- 5. Shockwave
+					-- 5. Shockwave (Onda Gélida)
 					if char:GetAttribute("HasShockwave") then
 						local lastShock = char:GetAttribute("LastShockTime") or 0
-						if now - lastShock > 1.5 then
+						if now - lastShock > 1.8 then
 							char:SetAttribute("LastShockTime", now)
-							for _, p in ipairs(workspace:GetPartBoundsInRadius(root.Position, 25)) do
+							
+							-- Visual: Expanding Blast Ring
+							local ring = Instance.new("Part")
+							ring.Shape = Enum.PartType.Ball
+							ring.Color = Color3.fromRGB(0, 255, 255)
+							ring.Material = Enum.Material.Neon
+							ring.Transparency = 0.5
+							ring.Anchored = true
+							ring.CanCollide = false
+							ring.Position = root.Position
+							ring.Parent = workspace
+							
+							TweenService:Create(ring, TweenInfo.new(0.6, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = Vector3.new(60, 60, 60), Transparency = 1}):Play()
+							task.delay(0.6, function() if ring then ring:Destroy() end end)
+							
+							print(string.format("SHOCKWAVE: %s triggered blast!", player.Name))
+							
+							for _, p in ipairs(workspace:GetPartBoundsInRadius(root.Position, 30)) do
 								local m = p:FindFirstAncestorOfClass("Model")
 								if m and m:FindFirstChild("Humanoid") and m ~= char then
 									local targetRoot = m:FindFirstChild("HumanoidRootPart")
+									local thum = m.Humanoid
 									if targetRoot then
 										local dir = (targetRoot.Position - root.Position).Unit
-										targetRoot:ApplyImpulse(dir * 4000)
+										targetRoot:ApplyImpulse(dir * 7000)
+										
+										-- Tactics: Apply FREEZE
+										FreezeService.ApplyHit(m)
+										
+										-- Damage for enemies
+										if not Players:GetPlayerFromCharacter(m) then
+											thum:TakeDamage(5)
+										end
 									end
 								end
 							end
