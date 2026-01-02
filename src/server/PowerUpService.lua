@@ -115,6 +115,11 @@ function PowerUpService.ApplyBuff(character, powerKey)
 		character:SetAttribute("HasExplosiveBalls", true)
 	elseif powerKey == "PHANTOM" then
 		humanoid.WalkSpeed = 26
+		local fire = Instance.new("Fire")
+		fire.Name = "GhostFire"
+		fire.Color = Color3.fromRGB(0, 200, 255)
+		fire.SecondaryColor = Color3.fromRGB(0, 0, 255)
+		fire.Parent = character:FindFirstChild("HumanoidRootPart")
 		for _, v in ipairs(character:GetDescendants()) do
 			if v:IsA("BasePart") then v.Transparency = 0.6 end
 		end
@@ -322,6 +327,8 @@ function PowerUpService.RemoveBuff(character)
 	if ff then ff:Destroy() end
 	local bv = character.PrimaryPart and character.PrimaryPart:FindFirstChild("FlightVelocity")
 	if bv then bv:Destroy() end
+	local gf = character:FindFirstChild("HumanoidRootPart") and character.HumanoidRootPart:FindFirstChild("GhostFire")
+	if gf then gf:Destroy() end
 	
 	for _, v in ipairs(character:GetChildren()) do
 		if v.Name == "MirageDecoy" or v.Name == "MasterClone" then v:Destroy() end
@@ -371,7 +378,7 @@ function PowerUpService.StartLoop()
 					local hum = char:FindFirstChildOfClass("Humanoid")
 					if not root or not hum then continue end
 					
-					-- 1. Frost Trail (Existing)
+					-- 1. Frost Trail (Functional: Freezes on touch)
 					if char:GetAttribute("HasFrostTrail") then
 						local trail = Instance.new("Part")
 						trail.Name = "FrostTrailPart"
@@ -379,25 +386,19 @@ function PowerUpService.StartLoop()
 						trail.Position = root.Position - Vector3.new(0, 3, 0)
 						trail.Color = Color3.fromRGB(150, 230, 255) trail.Material = Enum.Material.Ice
 						trail.Anchored = true trail.CanCollide = false trail.Parent = workspace
+						trail.Touched:Connect(function(hit)
+							local m = hit.Parent:IsA("Model") and hit.Parent
+							if m and m:FindFirstChild("Humanoid") and m ~= char then
+								local fs = require(ServerScriptService:WaitForChild("FreezeService"))
+								fs.ApplyHit(m)
+							end
+						end)
 						task.delay(5, function() if trail then trail:Destroy() end end)
 					end
 					
-					-- 2. Ice Aura (Auto-Freeze)
-					if char:GetAttribute("HasIceAura") then
-						local lastAura = char:GetAttribute("LastAuraPulse") or 0
-						if now - lastAura > 1.0 then
-							char:SetAttribute("LastAuraPulse", now)
-							for _, p in ipairs(workspace:GetPartBoundsInRadius(root.Position, 18)) do
-								local m = p:FindFirstAncestorOfClass("Model")
-								if m and m:FindFirstChild("Humanoid") and m ~= char then
-									local FreezeService = require(ServerScriptService:WaitForChild("FreezeService"))
-									FreezeService.ApplyHit(m)
-								end
-							end
-						end
-					end
+					-- 2. Ice Aura (Auto-Freeze) (Already functional)
 					
-					-- 3. Meteor Rain
+					-- 3. Meteor Rain (Functional: AOE Explosion)
 					if char:GetAttribute("HasMeteorRain") then
 						local lastMeteor = char:GetAttribute("LastMeteorTime") or 0
 						if now - lastMeteor > 2.0 then
@@ -408,11 +409,18 @@ function PowerUpService.StartLoop()
 							met.Position = mpos met.Color = Color3.fromRGB(0, 200, 255)
 							met.Material = Enum.Material.Neon met.Parent = workspace
 							met.Touched:Connect(function(hit)
-								local m = hit.Parent:IsA("Model") and hit.Parent
-								if m and m:FindFirstChild("Humanoid") and m ~= char then
-									local FreezeService = require(ServerScriptService:WaitForChild("FreezeService"))
-									FreezeService.ApplyHit(m, 3) -- Strong hit
+								local pos = met.Position
+								local fs = require(ServerScriptService:WaitForChild("FreezeService"))
+								for _, p in ipairs(workspace:GetPartBoundsInRadius(pos, 12)) do
+									local m = p:FindFirstAncestorOfClass("Model")
+									if m and m:FindFirstChild("Humanoid") and m ~= char then
+										fs.ApplyHit(m, 2) -- Explosive impact
+									end
 								end
+								
+								-- Explosion Visual
+								local exp = Instance.new("Explosion")
+								exp.BlastRadius = 0 exp.Position = pos exp.Parent = workspace
 								met:Destroy()
 							end)
 							task.delay(5, function() if met then met:Destroy() end end)

@@ -273,4 +273,25 @@ UserInputService.InputBegan:Connect(function(input, processed)
 	end
 end)
 
+-- Client-Side Dash Trails (Motion Blur)
+game:GetService("RunService").Heartbeat:Connect(function()
+	local char = player.Character
+	if char and char:GetAttribute("DASH") then
+		local root = char:FindFirstChild("HumanoidRootPart")
+		if root then
+			local ghost = Instance.new("Part")
+			ghost.Size = Vector3.new(2, 5, 1)
+			ghost.Color = Color3.fromRGB(255, 255, 0)
+			ghost.Transparency = 0.7
+			ghost.Material = Enum.Material.Neon
+			ghost.Anchored = true 
+			ghost.CanCollide = false
+			ghost.CanTouch = false
+			ghost.CFrame = root.CFrame
+			ghost.Parent = workspace
+			task.delay(0.15, function() ghost:Destroy() end)
+		end
+	end
+end)
+
 print("--- FROST BROS CLIENT: GUN READY ---")
