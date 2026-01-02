@@ -20,28 +20,64 @@ function PowerUpService.SpawnPotion(bypassTimer)
 	local chosenKey = typeKeys[math.random(1, #typeKeys)]
 	local chosenData = GameConstants.POWERUP_TYPES[chosenKey]
 	
-	print("POWERUP: Spawning Potion of " .. chosenData.Name)
+	print("POWERUP: Spawning Crystal Core of " .. chosenData.Name)
+	nextSpawnTime = os.clock() + 5 -- Set early lock to avoid loop re-entry
 	
-	local potion = Instance.new("Part")
-	potion.Name = "GiantPotion"
-	potion.Size = Vector3.new(2, 3.5, 2)
-	potion.Color = chosenData.Color
-	potion.Material = Enum.Material.Neon
-	potion.Anchored = true
-	potion.CanCollide = false
-	potion:SetAttribute("PowerType", chosenKey)
+	-- 1. Outer Crystal Container
+	local container = Instance.new("Part")
+	container.Name = "PotionCrystal"
+	container.Size = Vector3.new(2.4, 3.8, 2.4)
+	container.Color = Color3.fromRGB(200, 240, 255)
+	container.Material = Enum.Material.Glass
+	container.Transparency = 0.7
+	container.Reflectance = 0.2
+	container.Anchored = true
+	container.CanCollide = false
+	container:SetAttribute("PowerType", chosenKey)
 	
+	-- 2. Internal Magic Core
+	local core = Instance.new("Part")
+	core.Name = "LiquidCore"
+	core.Shape = Enum.PartType.Ball
+	core.Size = Vector3.new(1.4, 1.8, 1.4)
+	core.Color = chosenData.Color
+	core.Material = Enum.Material.Neon
+	core.Anchored = true
+	core.CanCollide = false
+	core.Parent = container
+	
+	-- 3. Point Light for Glow
+	local light = Instance.new("PointLight")
+	light.Color = chosenData.Color
+	light.Range = 10
+	light.Brightness = 3
+	light.Parent = core
+	
+	-- 4. Internal Magical Bubbles
+	local p = Instance.new("ParticleEmitter")
+	p.Color = ColorSequence.new(chosenData.Color)
+	p.Size = NumberSequence.new(0.3, 0)
+	p.Transparency = NumberSequence.new(0.5, 1)
+	p.Lifetime = NumberRange.new(1, 2)
+	p.Rate = 6
+	p.Speed = NumberRange.new(1, 4)
+	p.VelocitySpread = 360
+	p.Texture = "rbxassetid://6071575923"
+	p.Parent = core
+
 	local CollectionService = game:GetService("CollectionService")
 	local peaks = CollectionService:GetTagged("PyramidPeak")
 	
 	if #peaks == 0 then
 		print("POWERUP: Error - No PyramidPeaks found in workspace!")
+		container:Destroy()
 		return
 	end
 	
 	local targetPeak = peaks[math.random(1, #peaks)]
-	potion.Position = targetPeak.Position + Vector3.new(0, 6, 0)
-	potion.Parent = workspace
+	container.Position = targetPeak.Position + Vector3.new(0, 8, 0)
+	core.Position = container.Position
+	container.Parent = workspace
 	
 	-- Notification of Spawn
 	local remoteNotice = ReplicatedStorage:FindFirstChild("PowerUpNotice")
@@ -49,19 +85,40 @@ function PowerUpService.SpawnPotion(bypassTimer)
 		remoteNotice:FireAllClients("SERVER", chosenKey, "SPAWN")
 	end
 	
+	-- Pulsing Core Animation
+	task.spawn(function()
+		while container.Parent do
+			local t = os.clock()
+			local pulse = 1.2 + math.sin(t * 3) * 0.4
+			core.Size = Vector3.new(1.4, 1.8, 1.4) * pulse
+			light.Brightness = 2 + math.sin(t * 5) * 1.5
+			task.wait(0.05)
+		end
+	end)
+	
 	-- Visual Floating
-	local startPos = potion.Position
-	local floatTween = TweenService:Create(potion, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {Position = startPos + Vector3.new(0, 1.5, 0)})
+	local startPos = container.Position
+	local floatTween = TweenService:Create(container, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {Position = startPos + Vector3.new(0, 2, 0)})
 	floatTween:Play()
+	
+	-- Also tween core to follow manually or use weld logic
+	-- Since they are both anchored, I'll update core position in the pulse loop
+	task.spawn(function()
+		while container.Parent do
+			core.Position = container.Position
+			container.CFrame = container.CFrame * CFrame.Angles(0, math.rad(1), 0)
+			task.wait(0.01)
+		end
+	end)
 	
 	-- Interaction
 	local connection
-	connection = potion.Touched:Connect(function(hit)
+	connection = container.Touched:Connect(function(hit)
 		local character = hit.Parent
 		local player = Players:GetPlayerFromCharacter(character)
 		if player and not character:GetAttribute("PowerUpActive") then
 			connection:Disconnect()
-			potion:Destroy()
+			container:Destroy()
 			nextSpawnTime = os.clock() + 5
 			PowerUpService.ApplyBuff(character, chosenKey)
 		end
@@ -218,22 +275,80 @@ function PowerUpService.ApplyBuff(character, powerKey)
 		local CollectionService = game:GetService("CollectionService")
 		local peaks = CollectionService:GetTagged("PyramidPeak")
 		if #peaks > 0 then
+			-- 1. Teleport the Player
 			local target = peaks[math.random(1, #peaks)]
 			character:SetPrimaryPartCFrame(target.CFrame * CFrame.new(0, 10, 0))
+			
+			-- Visual Flash
+			local function createFlash(pos)
+				local flash = Instance.new("Part")
+				flash.Size = Vector3.new(6, 6, 6)
+				flash.Shape = Enum.PartType.Ball
+				flash.Color = Color3.fromRGB(255, 255, 255)
+				flash.Material = Enum.Material.Neon
+				flash.Anchored = true flash.CanCollide = false
+				flash.Position = pos flash.Parent = workspace
+				TweenService:Create(flash, TweenInfo.new(0.4), {Transparency = 1, Size = Vector3.new(0,0,0)}):Play()
+				task.delay(0.4, function() flash:Destroy() end)
+			end
+			createFlash(character.PrimaryPart.Position)
+
+			-- 2. FROST DISPATCH: Teleport all frozen entities
+			print("TELEPORT: Dispatching frozen souls...")
+			for _, m in ipairs(workspace:GetDescendants()) do
+				if m:IsA("Model") and m:GetAttribute("IsFrozen") then
+					local randPeak = peaks[math.random(1, #peaks)]
+					local root = m:FindFirstChild("HumanoidRootPart")
+					if root then
+						createFlash(root.Position) -- Flash at old pos
+						m:SetPrimaryPartCFrame(randPeak.CFrame * CFrame.new(0, 10, 0))
+						createFlash(root.Position) -- Flash at new pos
+					end
+				end
+			end
 		end
 	elseif powerKey == "AURA" then
 		character:SetAttribute("HasIceAura", true)
-		local p = Instance.new("ParticleEmitter")
-		p.Name = "IceAuraEffect"
-		p.Color = ColorSequence.new(Color3.fromRGB(0, 255, 255))
-		p.Size = NumberSequence.new(3, 0)
-		p.Transparency = NumberSequence.new(0.5, 1)
-		p.Lifetime = NumberRange.new(1.5)
-		p.Rate = 10
-		p.Speed = NumberRange.new(0)
-		p.LockedToPart = true
-		p.Texture = "rbxassetid://6071575923"
-		p.Parent = character:FindFirstChild("HumanoidRootPart")
+		local root = character:FindFirstChild("HumanoidRootPart")
+		if root then
+			-- 1. Core Vortex (Rotating Frost)
+			local p1 = Instance.new("ParticleEmitter")
+			p1.Name = "IceAura_Core"
+			p1.Color = ColorSequence.new(Color3.fromRGB(0, 255, 255))
+			p1.Size = NumberSequence.new({NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.2, 4), NumberSequenceKeypoint.new(1, 0)})
+			p1.Transparency = NumberSequence.new(0.5, 1)
+			p1.Lifetime = NumberRange.new(1)
+			p1.Rate = 40
+			p1.Rotation = NumberRange.new(0, 360)
+			p1.RotSpeed = NumberRange.new(200, 400)
+			p1.Speed = NumberRange.new(0)
+			p1.LockedToPart = true
+			p1.Texture = "rbxassetid://6071575923"
+			p1.Parent = root
+			
+			-- 2. Outer Blizzard (Snowflakes falling/swirling)
+			local p2 = Instance.new("ParticleEmitter")
+			p2.Name = "IceAura_Blizzard"
+			p2.Color = ColorSequence.new(Color3.fromRGB(200, 255, 255))
+			p2.Size = NumberSequence.new(0.5, 0)
+			p2.Transparency = NumberSequence.new(0.2, 1)
+			p2.Lifetime = NumberRange.new(1.5, 2.5)
+			p2.Rate = 60
+			p2.Speed = NumberRange.new(5, 15)
+			p2.VelocitySpread = 180
+			p2.Acceleration = Vector3.new(0, -10, 0)
+			p2.Texture = "rbxassetid://6071575923"
+			p2.Parent = root
+			
+			-- 3. Ground Frost Fog
+			local smoke = Instance.new("Smoke")
+			smoke.Name = "IceAura_Fog"
+			smoke.Color = Color3.fromRGB(150, 230, 255)
+			smoke.Size = 15
+			smoke.Opacity = 0.3
+			smoke.Rise = 2
+			smoke.Parent = root
+		end
 	elseif powerKey == "SLOMO" then
 		character:SetAttribute("HasSloMo", true)
 	elseif powerKey == "REGEN" then
@@ -330,6 +445,21 @@ function PowerUpService.ApplyBuff(character, powerKey)
 		character:SetAttribute("HasVenom", true)
 	elseif powerKey == "THORN" then
 		character:SetAttribute("HasThorns", true)
+		local root = character:FindFirstChild("HumanoidRootPart")
+		if root then
+			local p = Instance.new("ParticleEmitter")
+			p.Name = "ThornEffect"
+			p.Color = ColorSequence.new(data.Color)
+			p.Size = NumberSequence.new(2, 0)
+			p.Transparency = NumberSequence.new(0.5, 1)
+			p.Lifetime = NumberRange.new(0.8)
+			p.Rate = 12
+			p.Speed = NumberRange.new(5)
+			p.VelocitySpread = 360
+			-- Shape like a triangular spike (using a built-in star or similar)
+			p.Texture = "rbxassetid://6071575923"
+			p.Parent = root
+		end
 	elseif powerKey == "TITAN" then
 		if humanoid.RigType == Enum.HumanoidRigType.R15 then
 			humanoid.BodyHeightScale.Value = 4
@@ -510,7 +640,7 @@ function PowerUpService.StartLoop()
 		print("POWERUP: Starting Spawn Loop...")
 		while true do
 			local success, err = pcall(function()
-				local potionExists = workspace:FindFirstChild("GiantPotion")
+				local potionExists = workspace:FindFirstChild("PotionCrystal")
 				if not potionExists then
 					local now = os.clock()
 					if now >= nextSpawnTime then

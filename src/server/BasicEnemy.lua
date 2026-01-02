@@ -2,6 +2,7 @@ local RunService = game:GetService("RunService")
 local ServerScriptService = game:GetService("ServerScriptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RollLogic = require(ServerScriptService.Server:WaitForChild("RollLogic"))
+local FreezeService = require(ServerScriptService.Server:WaitForChild("FreezeService"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameConstants = require(Shared:WaitForChild("GameConstants"))
 
@@ -38,10 +39,25 @@ function BasicEnemy.new(model)
 		else
 			-- DEADLY TOUCH (Kill player if not frozen)
 			if not self.model:GetAttribute("IsRolling") then
-				-- INVULNERABILITY CHECK (Now includes Giants/Titans)
-				if character:GetAttribute("HasShield") or character:GetAttribute("IsInvincible") or 
-				   character:GetAttribute("IsGiant") or character:GetAttribute("IsTitan") then
-					print(string.format("KILL BLOCKED: %s is too BIG/PROTECTED to die from touch!", player.Name))
+				-- PROTECTION CHECK: Shields, Giants, and THORNS
+				local isProtected = character:GetAttribute("HasShield") or 
+								    character:GetAttribute("IsInvincible") or 
+								    character:GetAttribute("IsGiant") or 
+								    character:GetAttribute("IsTitan") or
+								    character:GetAttribute("HasThorns")
+
+				if isProtected then
+					-- THORN RETALIATION: If they have thorns, freeze the enemy!
+					if character:GetAttribute("HasThorns") then
+						print(string.format("THORN RETRIBUTION: %s hit by %s", self.model.Name, player.Name))
+						FreezeService.ApplyHit(self.model)
+						
+						-- Push back
+						local dir = (self.root.Position - character.HumanoidRootPart.Position).Unit
+						self.root:ApplyImpulse(dir * 5000)
+					end
+					
+					print(string.format("KILL BLOCKED: %s is PROTECTED!", player.Name))
 					return
 				end
 				
