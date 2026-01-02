@@ -52,7 +52,13 @@ function PowerUpService.ApplyBuff(character, powerKey)
 	
 	-- Notify Server/Players
 	local player = Players:GetPlayerFromCharacter(character)
-	print(string.format("--- POWERUP: %s used %s Potion! ---", player and player.Name or character.Name, data.Name))
+	local playerName = player and player.Name or character.Name
+	print(string.format("--- POWERUP: %s used %s Potion! ---", playerName, data.Name))
+	
+	local remoteNotice = ReplicatedStorage:FindFirstChild("PowerUpNotice")
+	if remoteNotice then
+		remoteNotice:FireAllClients(playerName, powerKey)
+	end
 
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	if not humanoid then return end

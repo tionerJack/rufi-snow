@@ -16,11 +16,48 @@ local lastFire = 0
 -- Helper to get world position from screen point (for touch)
 local function getScreenToWorld(screenPos)
 	local unitRay = workspace.CurrentCamera:ScreenPointToRay(screenPos.X, screenPos.Y)
-	local rayParams = RaycastParams.new()
-	rayParams.FilterType = Enum.RaycastFilterType.Exclude
 	local rayResult = workspace:Raycast(unitRay.Origin, unitRay.Direction * 1000)
 	return rayResult and rayResult.Position or (unitRay.Origin + unitRay.Direction * 1000)
 end
+
+local function getMouseWorldPos()
+	local pos = mouse.Hit.Position
+	return pos
+end
+
+-- UI Notification System
+local function showAnnouncement(playerName, powerKey)
+	local data = GameConstants.POWERUP_TYPES[powerKey]
+	if not data then return end
+	
+	local gui = player.PlayerGui:FindFirstChild("Announcements") or Instance.new("ScreenGui")
+	gui.Name = "Announcements"
+	gui.ResetOnSpawn = false
+	gui.Parent = player.PlayerGui
+	
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(0.6, 0, 0.1, 0)
+	label.Position = UDim2.new(0.2, 0, -0.2, 0) -- Start off-screen
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.FredokaOne
+	label.TextSize = 30
+	label.TextColor3 = data.Color
+	label.Text = string.format("¡%s obtuvo el poder: %s!", playerName:upper(), data.Name:upper())
+	label.TextStrokeTransparency = 0.5
+	label.Parent = gui
+	
+	-- Animation
+	local tweenIn = TweenService:Create(label, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0.2, 0, 0.1, 0)})
+	local tweenOut = TweenService:Create(label, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Position = UDim2.new(0.2, 0, -0.2, 0)})
+	
+	tweenIn:Play()
+	task.delay(3, function()
+		tweenOut:Play()
+		tweenOut.Completed:Connect(function() label:Destroy() end)
+	end)
+end
+
+ReplicatedStorage:WaitForChild("PowerUpNotice").OnClientEvent:Connect(showAnnouncement)
 
 -- Procedural Animation Helper
 local function playProceduralAnim(character, animType)

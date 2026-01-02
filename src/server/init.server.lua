@@ -40,6 +40,13 @@ if not remoteAnim then
 	remoteAnim.Parent = ReplicatedStorage
 end
 
+local remoteNotice = ReplicatedStorage:FindFirstChild("PowerUpNotice")
+if not remoteNotice then
+	remoteNotice = Instance.new("RemoteEvent")
+	remoteNotice.Name = "PowerUpNotice"
+	remoteNotice.Parent = ReplicatedStorage
+end
+
 remoteHit.OnServerEvent:Connect(function(player, hitPart)
 	if not hitPart then return end
 	local targetModel = hitPart:FindFirstAncestorOfClass("Model")
