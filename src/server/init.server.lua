@@ -4,15 +4,7 @@ local CollectionService = game:GetService("CollectionService")
 
 print("--- FROST BROS DEBUG: SERVER STARTING ---")
 
--- Visual indicator that sync works
-local marker = Instance.new("Part")
-marker.Name = "RojoSyncMarker"
-marker.Size = Vector3.new(4, 1, 4)
-marker.Color = Color3.fromRGB(0, 255, 0)
-marker.Anchored = true
-marker.Position = Vector3.new(0, 5, 0)
-marker.Material = Enum.Material.Neon
-marker.Parent = workspace
+-- Visual indicators (none)
 
 local FreezeService = require(script:WaitForChild("FreezeService"))
 local BasicEnemy = require(script:WaitForChild("BasicEnemy"))
@@ -53,26 +45,110 @@ remoteHit.OnServerEvent:Connect(function(player, hitPart)
 	if not targetModel or not targetModel:FindFirstChildOfClass("Humanoid") then return end
 	if targetModel == player.Character then return end
 	
-	-- SHIELD: Target is immune
-	if targetModel:GetAttribute("HasShield") then 
-		print("FREEZE: Hit ignored due to SHIELD on " .. targetModel.Name)
+	-- SHIELD / INVINCIBLE: Target is immune
+	if targetModel:GetAttribute("HasShield") or targetModel:GetAttribute("IsInvincible") then 
+		print("FREEZE: Hit ignored due to INVULNERABILITY on " .. targetModel.Name)
 		return 
 	end
 
-	local char = player.Character
+	-- ABILITY: Wall Power (Spawn wall on hit/shot)
+	if char and char:GetAttribute("HasWallPower") then
+		local iceWall = Instance.new("Part")
+		iceWall.Name = "TemporaryIceWall"
+		iceWall.Size = Vector3.new(12, 10, 2)
+		iceWall.Position = hitPart.Position + Vector3.new(0, 5, 0)
+		iceWall.Color = Color3.fromRGB(200, 255, 255)
+		iceWall.Material = Enum.Material.Ice
+		iceWall.Anchored = true
+		iceWall.Parent = workspace
+		task.delay(5, function() if iceWall then iceWall:Destroy() end end)
+	end
+	
+	-- NEW ABILITIES CHECK
 	local isMega = char and char:GetAttribute("HasMegaBalls")
 	local isExplosive = char and char:GetAttribute("HasExplosiveBalls")
+	local isFire = char and char:GetAttribute("HasFirePower")
+	local isStun = char and char:GetAttribute("HasStunBalls")
+	local isVortex = char and char:GetAttribute("HasVortexPower")
+	local isBerserk = char and char:GetAttribute("IsBerserk")
+	local isSloMo = char and char:GetAttribute("HasSloMo")
+	local isVenom = char and char:GetAttribute("HasVenom")
+	local isShrink = char and char:GetAttribute("HasShrinkRay")
 	
+	-- THORN CHECK: If target has Thorns, the ATTACKER gets hit too
+	if targetModel:GetAttribute("HasThorns") then
+		FreezeService.ApplyHit(char)
+	end
+
 	local function applyForceHit(model, mult)
 		for i = 1, mult or 1 do
 			FreezeService.ApplyHit(model)
 		end
+		
+		-- Special Effects
+		local hum = model:FindFirstChildOfClass("Humanoid")
+		if hum then
+			if isFire then
+				hum:TakeDamage(5)
+				local fire = Instance.new("Fire")
+				fire.Size = 5 fire.Parent = model:FindFirstChild("HumanoidRootPart")
+				task.delay(3, function() fire:Destroy() end)
+			end
+			
+			if isStun then
+				local oldSpeed = hum.WalkSpeed
+				hum.WalkSpeed = 0
+				task.delay(3, function() if hum then hum.WalkSpeed = oldSpeed end end)
+			end
+			
+			if isSloMo then
+				local oldSpeed = hum.WalkSpeed
+				hum.WalkSpeed = 4
+				task.delay(4, function() if hum then hum.WalkSpeed = oldSpeed end end)
+			end
+			
+			if isVenom then
+				task.spawn(function()
+					for i = 1, 5 do
+						if hum then hum:TakeDamage(3) end
+						task.wait(1)
+					end
+				end)
+			end
+			
+			if isShrink then
+				if hum.RigType == Enum.HumanoidRigType.R15 then
+					hum.BodyHeightScale.Value *= 0.7
+					hum.BodyWidthScale.Value *= 0.7
+				end
+			end
+			
+			if isBerserk then
+				local root = model:FindFirstChild("HumanoidRootPart")
+				if root and char.PrimaryPart then
+					local dir = (root.Position - char.PrimaryPart.Position).Unit
+					root:ApplyImpulse(dir * 5000)
+				end
+			end
+		end
+	end
+
+	if isVortex then
+		local pos = hitPart.Position
+		for _, part in ipairs(workspace:GetPartBoundsInRadius(pos, 25)) do
+			local m = part:FindFirstAncestorOfClass("Model")
+			if m and m:FindFirstChildOfClass("Humanoid") and m ~= char then
+				local root = m:FindFirstChild("HumanoidRootPart")
+				if root then
+					local pullDir = (pos - root.Position).Unit
+					root:ApplyImpulse(pullDir * 2000)
+				end
+			end
+		end
 	end
 
 	if isExplosive then
-		-- Area of Effect
 		local pos = hitPart.Position
-		print("FREEZE: Explosive hit at " .. tostring(pos))
 		for _, part in ipairs(workspace:GetPartBoundsInRadius(pos, 12)) do
 			local m = part:FindFirstAncestorOfClass("Model")
 			if m and m:FindFirstChildOfClass("Humanoid") and m ~= char then
@@ -241,6 +317,12 @@ local function createTestEnemy(pos)
 	
 	-- Respawn logic
 	hum.Died:Connect(function()
+		-- Bonus: If no potion active, spawn one immediately!
+		if not workspace:FindFirstChild("GiantPotion") then
+			print("ENEMY DIED: Spawning reward potion!")
+			PowerUpService.SpawnPotion(true) -- Bypass timer
+		end
+		
 		task.wait(3)
 		createTestEnemy(getRandomSpawnPos())
 		dummy:Destroy()

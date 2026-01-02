@@ -16,15 +16,49 @@ local GameConstants = {
 	POWERUP_SPAWN_CHECK_INTERVAL = 10,
 	
 	POWERUP_TYPES = {
-		GIANT = {Name = "Giant", Color = Color3.fromRGB(255, 100, 200)},     -- Pink
-		SPEED = {Name = "Speed", Color = Color3.fromRGB(255, 230, 0)},       -- Yellow
-		TRIPLE = {Name = "Triple", Color = Color3.fromRGB(0, 255, 100)},      -- Green
-		MEGA = {Name = "MegaBall", Color = Color3.fromRGB(255, 0, 0)},       -- Red
-		RAPID = {Name = "RapidFire", Color = Color3.fromRGB(255, 120, 0)},   -- Orange
-		JUMP = {Name = "JumpBoost", Color = Color3.fromRGB(0, 150, 255)},    -- Blue
-		SHIELD = {Name = "Shield", Color = Color3.fromRGB(0, 255, 255)},     -- Cyan
-		EXPLOSIVE = {Name = "Explosive", Color = Color3.fromRGB(200, 0, 255)},-- Purple
-		PHANTOM = {Name = "Phantom", Color = Color3.fromRGB(200, 200, 200)}, -- White
+		GIANT = {Name = "Gigante", Color = Color3.fromRGB(255, 100, 200)},     
+		SPEED = {Name = "Velocidad", Color = Color3.fromRGB(255, 230, 0)},       
+		TRIPLE = {Name = "Triple Tiro", Color = Color3.fromRGB(0, 255, 100)},      
+		MEGA = {Name = "Mega Bola", Color = Color3.fromRGB(255, 0, 0)},       
+		RAPID = {Name = "Fuego Rápido", Color = Color3.fromRGB(255, 120, 0)},   
+		JUMP = {Name = "Gran Salto", Color = Color3.fromRGB(0, 150, 255)},    
+		SHIELD = {Name = "Escudo", Color = Color3.fromRGB(0, 255, 255)},     
+		EXPLOSIVE = {Name = "Explosivo", Color = Color3.fromRGB(200, 0, 255)},
+		PHANTOM = {Name = "Fantasmagoría", Color = Color3.fromRGB(200, 200, 200)}, 
+		
+		-- 10 NEW TYPES
+		MINI = {Name = "Miniatura", Color = Color3.fromRGB(255, 0, 255)},
+		FIRE = {Name = "Llama Gélida", Color = Color3.fromRGB(255, 69, 0)},
+		BOUNCE = {Name = "Rebotador", Color = Color3.fromRGB(173, 255, 47)},
+		GRAVITY = {Name = "Antigravedad", Color = Color3.fromRGB(138, 43, 226)},
+		FROSTBIT = {Name = "Rastro Gélido", Color = Color3.fromRGB(100, 255, 255)},
+		VORTEX = {Name = "Vórtice", Color = Color3.fromRGB(0, 0, 128)},
+		MIRAGE = {Name = "Espejismo", Color = Color3.fromRGB(255, 255, 0)},
+		GOD = {Name = "Invencible", Color = Color3.fromRGB(255, 255, 255)},
+		BERSERK = {Name = "Furia", Color = Color3.fromRGB(139, 0, 0)},
+		STUN = {Name = "Aturdimiento", Color = Color3.fromRGB(210, 105, 30)},
+		
+		-- 20 NEW TYPES (Total 39)
+		TELEPORT = {Name = "Teletransporte", Color = Color3.fromRGB(123, 104, 238)},
+		AURA = {Name = "Aura Gélida", Color = Color3.fromRGB(175, 238, 238)},
+		SLOMO = {Name = "Cámara Lenta", Color = Color3.fromRGB(100, 149, 237)},
+		REGEN = {Name = "Regeneración", Color = Color3.fromRGB(50, 205, 50)},
+		METEOR = {Name = "Lluvia Gélida", Color = Color3.fromRGB(70, 130, 180)},
+		WALL = {Name = "Muro de Hielo", Color = Color3.fromRGB(240, 248, 255)},
+		INVIS = {Name = "Invisibilidad", Color = Color3.fromRGB(245, 245, 245)},
+		SHOCK = {Name = "Onda de Choque", Color = Color3.fromRGB(218, 165, 32)},
+		BEAM = {Name = "Rayo Gélido", Color = Color3.fromRGB(0, 191, 255)},
+		DASH = {Name = "Súper Impulso", Color = Color3.fromRGB(255, 215, 0)},
+		CLONE = {Name = "Clon Maestro", Color = Color3.fromRGB(255, 105, 180)},
+		VENOM = {Name = "Veneno Ártico", Color = Color3.fromRGB(34, 139, 34)},
+		THORN = {Name = "Espinas", Color = Color3.fromRGB(0, 100, 0)},
+		TITAN = {Name = "Titán Inmenso", Color = Color3.fromRGB(75, 0, 130)},
+		PULL = {Name = "Imán Galáctico", Color = Color3.fromRGB(255, 69, 0)},
+		BLIZZARD = {Name = "Tormeta de Nieve", Color = Color3.fromRGB(176, 224, 230)},
+		LASER = {Name = "Láser Ártico", Color = Color3.fromRGB(255, 20, 147)},
+		SHRINK = {Name = "Rayo Reductor", Color = Color3.fromRGB(106, 90, 205)},
+		FLY = {Name = "Vuelo Glacial", Color = Color3.fromRGB(135, 206, 250)},
+		TIME = {Name = "Rebobinar", Color = Color3.fromRGB(255, 140, 0)},
 	}
 }
 

@@ -203,8 +203,39 @@ function MapService.BuildArena()
 			createDecoration(pos)
 		end
 	end
+	-- 6. INVISIBLE CONTAINMENT (Hollow Dome/Box)
+	local function createBarrier(name, pos, bSize)
+		local barrier = Instance.new("Part")
+		barrier.Name = name
+		barrier.Size = bSize
+		barrier.Position = pos
+		barrier.Transparency = 1
+		barrier.CanCollide = true
+		barrier.CastShadow = false
+		barrier.Anchored = true
+		barrier.Locked = true
+		barrier.Parent = folder
+	end
+
+	local barrierHeight = 150
+	local barrierThickness = 10
 	
-	print("DECORATED SNOW CASTLE WITH BRIDGES BUILT!")
+	-- Vertical Walls
+	createBarrier("BarrierN", Vector3.new(0, barrierHeight/2, size/2 + barrierThickness/2), Vector3.new(size + 20, barrierHeight, barrierThickness))
+	createBarrier("BarrierS", Vector3.new(0, barrierHeight/2, -size/2 - barrierThickness/2), Vector3.new(size + 20, barrierHeight, barrierThickness))
+	createBarrier("BarrierE", Vector3.new(size/2 + barrierThickness/2, barrierHeight/2, 0), Vector3.new(barrierThickness, barrierHeight, size + 20))
+	createBarrier("BarrierW", Vector3.new(-size/2 - barrierThickness/2, barrierHeight/2, 0), Vector3.new(barrierThickness, barrierHeight, size + 20))
+	
+	-- Ceiling
+	createBarrier("BarrierCeiling", Vector3.new(0, barrierHeight, 0), Vector3.new(size + 20, barrierThickness, size + 20))
+
+	-- 7. LIGHTING (Restored)
+	local lighting = game:GetService("Lighting")
+	lighting.Ambient = Color3.fromRGB(150, 180, 200)
+	lighting.OutdoorAmbient = Color3.fromRGB(100, 120, 150)
+	lighting.Brightness = 2
+	
+	print("DECORATED SNOW CASTLE WITH HOLLOW CONTAINMENT BUILT!")
 end
 
 return MapService

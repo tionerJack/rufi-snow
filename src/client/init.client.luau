@@ -26,7 +26,7 @@ local function getMouseWorldPos()
 end
 
 -- UI Notification System
-local function showAnnouncement(playerName, powerKey)
+local function showAnnouncement(playerName, powerKey, actionType)
 	local data = GameConstants.POWERUP_TYPES[powerKey]
 	if not data then return end
 	
@@ -42,7 +42,13 @@ local function showAnnouncement(playerName, powerKey)
 	label.Font = Enum.Font.FredokaOne
 	label.TextSize = 30
 	label.TextColor3 = data.Color
-	label.Text = string.format("¡%s obtuvo el poder: %s!", playerName:upper(), data.Name:upper())
+	
+	if actionType == "SPAWN" then
+		label.Text = string.format("¡Ha aparecido una Pócima de %s!", data.Name:upper())
+	else
+		label.Text = string.format("¡%s obtuvo el poder: %s!", playerName:upper(), data.Name:upper())
+	end
+	
 	label.TextStrokeTransparency = 0.5
 	label.Parent = gui
 	
@@ -133,18 +139,51 @@ local function fire(targetOverride)
 			direction = (CFrame.new(Vector3.zero, direction) * CFrame.Angles(0, math.rad(angleOffset), 0)).LookVector
 		end
 		
+		-- LEASER LOGIC (Instant Hit)
+		if character:GetAttribute("HasLaser") then
+			local rayParams = RaycastParams.new()
+			rayParams.FilterDescendantsInstances = {character}
+			rayParams.FilterType = Enum.RaycastFilterType.Exclude
+			local result = workspace:Raycast(startPos, direction * 500, rayParams)
+			
+			local hitPos = startPos + direction * 500
+			if result then
+				hitPos = result.Position
+				local remote = ReplicatedStorage:FindFirstChild("IceHit")
+				if remote then remote:FireServer(result.Instance) end
+			end
+			
+			-- Laser Visual
+			local laser = Instance.new("Part")
+			laser.Anchored = true laser.CanCollide = false
+			laser.Color = Color3.fromRGB(255, 20, 147) laser.Material = Enum.Material.Neon
+			local dist = (hitPos - startPos).Magnitude
+			laser.Size = Vector3.new(0.2, 0.2, dist)
+			laser.CFrame = CFrame.lookAt(startPos, hitPos) * CFrame.new(0, 0, -dist/2)
+			laser.Parent = workspace
+			task.delay(0.1, function() laser:Destroy() end)
+			return
+		end
+		
 		local projectile = Instance.new("Part")
-		projectile.Size = isMega and Vector3.new(1.8, 1.8, 4.0) or Vector3.new(0.6, 0.6, 2.5)
-		projectile.Color = isMega and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(180, 230, 255)
+		local isBeam = character:GetAttribute("HasFreezeBeam")
+		projectile.Size = isBeam and Vector3.new(1, 1, 20) or (isMega and Vector3.new(1.8, 1.8, 4.0) or Vector3.new(0.6, 0.6, 2.5))
+		projectile.Color = isBeam and Color3.fromRGB(0, 191, 255) or (isMega and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(180, 230, 255))
 		projectile.Material = Enum.Material.Neon
 		projectile.CanCollide = false
 		projectile.Anchored = true
 		projectile.CFrame = CFrame.lookAt(startPos, startPos + direction)
 		projectile.Parent = workspace
 		
+		local isBouncing = character:GetAttribute("HasBouncingBalls")
+		
 		task.spawn(function()
 			local distance = 0
 			local speed = isMega and GameConstants.PROJECTILE_SPEED * 1.5 or GameConstants.PROJECTILE_SPEED
+			local bounces = 0
+			local maxBounces = isBouncing and 3 or 0
+			local currentDir = direction
+			
 			while distance < GameConstants.PROJECTILE_RANGE * 2 do
 				local step = speed * task.wait()
 				distance += step
@@ -156,13 +195,30 @@ local function fire(targetOverride)
 				
 				local rayLength = isMega and 4 or 2
 				local result = workspace:Raycast(projectile.Position, projectile.CFrame.LookVector * rayLength, rayParams)
+				
 				if result then
-					local remote = ReplicatedStorage:FindFirstChild("IceHit")
-					if remote then
-						remote:FireServer(result.Instance)
+					local hitModel = result.Instance:FindFirstAncestorOfClass("Model")
+					local hum = hitModel and hitModel:FindFirstChildOfClass("Humanoid")
+					
+					if hum then
+						local remote = ReplicatedStorage:FindFirstChild("IceHit")
+						if remote then
+							remote:FireServer(result.Instance)
+						end
+						projectile:Destroy()
+						break
+					elseif bounces < maxBounces then
+						-- BOUNCE!
+						bounces += 1
+						local reflect = currentDir - (2 * currentDir:Dot(result.Normal) * result.Normal)
+						currentDir = reflect
+						projectile.CFrame = CFrame.lookAt(projectile.Position, projectile.Position + currentDir)
+						-- Offset slightly to avoid immediate re-hit
+						projectile.Position = result.Position + result.Normal * 0.5
+					else
+						projectile:Destroy()
+						break
 					end
-					projectile:Destroy()
-					break
 				end
 			end
 			if projectile.Parent then projectile:Destroy() end

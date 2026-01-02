@@ -5,8 +5,15 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameConstants = require(Shared:WaitForChild("GameConstants"))
 
 local PowerUpService = {}
+local nextSpawnTime = 0
 
-local function spawnPotion()
+function PowerUpService.SpawnPotion(bypassTimer)
+	if bypassTimer then
+		nextSpawnTime = 0
+	end
+	
+	if os.clock() < nextSpawnTime then return end
+	
 	local typeKeys = {}
 	for k, _ in pairs(GameConstants.POWERUP_TYPES) do table.insert(typeKeys, k) end
 	local chosenKey = typeKeys[math.random(1, #typeKeys)]
@@ -35,6 +42,12 @@ local function spawnPotion()
 	potion.Position = targetPeak.Position + Vector3.new(0, 6, 0)
 	potion.Parent = workspace
 	
+	-- Notification of Spawn
+	local remoteNotice = ReplicatedStorage:FindFirstChild("PowerUpNotice")
+	if remoteNotice then
+		remoteNotice:FireAllClients("SERVER", chosenKey, "SPAWN")
+	end
+	
 	-- Visual Floating
 	local startPos = potion.Position
 	local floatTween = TweenService:Create(potion, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {Position = startPos + Vector3.new(0, 1.5, 0)})
@@ -48,6 +61,7 @@ local function spawnPotion()
 		if player and not character:GetAttribute("PowerUpActive") then
 			connection:Disconnect()
 			potion:Destroy()
+			nextSpawnTime = os.clock() + 5
 			PowerUpService.ApplyBuff(character, chosenKey)
 		end
 	end)
@@ -65,7 +79,7 @@ function PowerUpService.ApplyBuff(character, powerKey)
 	
 	local remoteNotice = ReplicatedStorage:FindFirstChild("PowerUpNotice")
 	if remoteNotice then
-		remoteNotice:FireAllClients(playerName, powerKey)
+		remoteNotice:FireAllClients(playerName, powerKey, "COLLECT")
 	end
 
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
@@ -104,6 +118,127 @@ function PowerUpService.ApplyBuff(character, powerKey)
 		for _, v in ipairs(character:GetDescendants()) do
 			if v:IsA("BasePart") then v.Transparency = 0.6 end
 		end
+	elseif powerKey == "MINI" then
+		if humanoid.RigType == Enum.HumanoidRigType.R15 then
+			humanoid.BodyHeightScale.Value = 0.4
+			humanoid.BodyWidthScale.Value = 0.4
+			humanoid.BodyDepthScale.Value = 0.4
+			humanoid.HeadScale.Value = 0.4
+		end
+		humanoid.WalkSpeed = 30
+	elseif powerKey == "FIRE" then
+		character:SetAttribute("HasFirePower", true)
+	elseif powerKey == "BOUNCE" then
+		character:SetAttribute("HasBouncingBalls", true)
+	elseif powerKey == "GRAVITY" then
+		humanoid.JumpPower = 150
+		character:SetAttribute("HasAntiGravity", true)
+	elseif powerKey == "FROSTBIT" then
+		character:SetAttribute("HasFrostTrail", true)
+	elseif powerKey == "VORTEX" then
+		character:SetAttribute("HasVortexPower", true)
+	elseif powerKey == "MIRAGE" then
+		character:SetAttribute("HasMirage", true)
+		-- Simple clones logic (just visual parts for now)
+		for i = 1, 2 do
+			local decoy = Instance.new("Part")
+			decoy.Name = "MirageDecoy"
+			decoy.Size = Vector3.new(4, 6, 4)
+			decoy.Transparency = 0.5
+			decoy.Color = data.Color
+			decoy.CFrame = character.PrimaryPart.CFrame * CFrame.new(math.random(-10, 10), 0, math.random(-10, 10))
+			decoy.Anchored = true
+			decoy.CanCollide = false
+			decoy.Parent = character
+			task.delay(15, function() if decoy then decoy:Destroy() end end)
+		end
+	elseif powerKey == "GOD" then
+		character:SetAttribute("IsInvincible", true)
+		local ff = Instance.new("ForceField")
+		ff.Name = "GodFF"
+		ff.Parent = character
+	elseif powerKey == "BERSERK" then
+		humanoid.WalkSpeed = 50
+		character:SetAttribute("IsBerserk", true)
+	elseif powerKey == "STUN" then
+		character:SetAttribute("HasStunBalls", true)
+	
+	-- 20 NEW TYPES
+	elseif powerKey == "TELEPORT" then
+		local CollectionService = game:GetService("CollectionService")
+		local peaks = CollectionService:GetTagged("PyramidPeak")
+		if #peaks > 0 then
+			local target = peaks[math.random(1, #peaks)]
+			character:SetPrimaryPartCFrame(target.CFrame * CFrame.new(0, 10, 0))
+		end
+	elseif powerKey == "AURA" then
+		character:SetAttribute("HasIceAura", true)
+	elseif powerKey == "SLOMO" then
+		character:SetAttribute("HasSloMo", true)
+	elseif powerKey == "REGEN" then
+		character:SetAttribute("HasRegen", true)
+	elseif powerKey == "METEOR" then
+		character:SetAttribute("HasMeteorRain", true)
+	elseif powerKey == "WALL" then
+		character:SetAttribute("HasWallPower", true)
+	elseif powerKey == "INVIS" then
+		character:SetAttribute("IsInvis", true)
+		for _, v in ipairs(character:GetDescendants()) do
+			if v:IsA("BasePart") then v.Transparency = 1 end
+		end
+	elseif powerKey == "SHOCK" then
+		character:SetAttribute("HasShockwave", true)
+	elseif powerKey == "BEAM" then
+		character:SetAttribute("HasFreezeBeam", true)
+	elseif powerKey == "DASH" then
+		humanoid.WalkSpeed = 80
+	elseif powerKey == "CLONE" then
+		character:SetAttribute("HasMasterClones", true)
+		for i = 1, 3 do
+			local decoy = Instance.new("Part")
+			decoy.Name = "MasterClone"
+			decoy.Size = Vector3.new(4, 6, 4)
+			decoy.Color = data.Color
+			decoy.Material = Enum.Material.Ice
+			decoy.CFrame = character.PrimaryPart.CFrame * CFrame.new(math.random(-15, 15), 0, math.random(-15, 15))
+			decoy.Anchored = false
+			decoy.Parent = character
+			local bp = Instance.new("BodyPosition")
+			bp.MaxForce = Vector3.new(1, 0, 1) * 10000
+			bp.Position = decoy.Position
+			bp.Parent = decoy
+		end
+	elseif powerKey == "VENOM" then
+		character:SetAttribute("HasVenom", true)
+	elseif powerKey == "THORN" then
+		character:SetAttribute("HasThorns", true)
+	elseif powerKey == "TITAN" then
+		if humanoid.RigType == Enum.HumanoidRigType.R15 then
+			humanoid.BodyHeightScale.Value = 4
+			humanoid.BodyWidthScale.Value = 4
+			humanoid.BodyDepthScale.Value = 4
+			humanoid.HeadScale.Value = 4
+		end
+		humanoid.JumpPower = 100
+	elseif powerKey == "PULL" then
+		character:SetAttribute("HasMagneticPull", true)
+	elseif powerKey == "BLIZZARD" then
+		character:SetAttribute("HasBlizzard", true)
+	elseif powerKey == "LASER" then
+		character:SetAttribute("HasLaser", true)
+	elseif powerKey == "SHRINK" then
+		character:SetAttribute("HasShrinkRay", true)
+	elseif powerKey == "FLY" then
+		character:SetAttribute("HasFlight", true)
+		humanoid.PlatformStand = true
+		local bv = Instance.new("BodyVelocity")
+		bv.Name = "FlightVelocity"
+		bv.Velocity = Vector3.zero
+		bv.MaxForce = Vector3.new(1, 1, 1) * 100000
+		bv.Parent = character.PrimaryPart
+	elseif powerKey == "TIME" then
+		character:SetAttribute("HasTimeRecall", true)
+		character:SetAttribute("RecallPos", character.PrimaryPart.Position)
 	end
 	
 	-- Global Cleanup logic
@@ -121,17 +256,54 @@ function PowerUpService.RemoveBuff(character)
 	character:SetAttribute("PowerUpActive", false)
 	character:SetAttribute("ActivePowerType", nil)
 	
-	-- Reset all possible attributes
+	-- ABILITY: Time Recall (Teleport back on expiration)
+	if character:GetAttribute("HasTimeRecall") then
+		local rPos = character:GetAttribute("RecallPos")
+		if rPos then
+			character:SetPrimaryPartCFrame(CFrame.new(rPos))
+		end
+	end
+	
+	-- Reset all possible attributes (Total 39 Potions)
 	character:SetAttribute("HasTripleShot", nil)
 	character:SetAttribute("HasMegaBalls", nil)
 	character:SetAttribute("HasRapidFire", nil)
 	character:SetAttribute("HasExplosiveBalls", nil)
 	character:SetAttribute("HasShield", nil)
+	character:SetAttribute("HasFirePower", nil)
+	character:SetAttribute("HasBouncingBalls", nil)
+	character:SetAttribute("HasAntiGravity", nil)
+	character:SetAttribute("HasFrostTrail", nil)
+	character:SetAttribute("HasVortexPower", nil)
+	character:SetAttribute("HasMirage", nil)
+	character:SetAttribute("IsBerserk", nil)
+	character:SetAttribute("HasStunBalls", nil)
+	character:SetAttribute("HasTeleport", nil)
+	character:SetAttribute("HasIceAura", nil)
+	character:SetAttribute("HasSloMo", nil)
+	character:SetAttribute("HasRegen", nil)
+	character:SetAttribute("HasMeteorRain", nil)
+	character:SetAttribute("HasWallPower", nil)
+	character:SetAttribute("IsInvis", nil)
+	character:SetAttribute("HasShockwave", nil)
+	character:SetAttribute("HasFreezeBeam", nil)
+	character:SetAttribute("HasMasterClones", nil)
+	character:SetAttribute("HasVenom", nil)
+	character:SetAttribute("HasThorns", nil)
+	character:SetAttribute("HasMagneticPull", nil)
+	character:SetAttribute("HasBlizzard", nil)
+	character:SetAttribute("HasLaser", nil)
+	character:SetAttribute("HasShrinkRay", nil)
+	character:SetAttribute("HasFlight", nil)
+	character:SetAttribute("HasTimeRecall", nil)
+	character:SetAttribute("RecallPos", nil)
+	character:SetAttribute("IsInvincible", nil)
 	
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	if humanoid then
 		humanoid.WalkSpeed = 16
 		humanoid.JumpPower = 50
+		humanoid.PlatformStand = false
 		if humanoid.RigType == Enum.HumanoidRigType.R15 then
 			humanoid.BodyHeightScale.Value = 1
 			humanoid.BodyWidthScale.Value = 1
@@ -143,6 +315,14 @@ function PowerUpService.RemoveBuff(character)
 	-- Visual Cleanups
 	local s = character:FindFirstChild("PowerShield")
 	if s then s:Destroy() end
+	local ff = character:FindFirstChild("GodFF")
+	if ff then ff:Destroy() end
+	local bv = character.PrimaryPart and character.PrimaryPart:FindFirstChild("FlightVelocity")
+	if bv then bv:Destroy() end
+	
+	for _, v in ipairs(character:GetChildren()) do
+		if v.Name == "MirageDecoy" or v.Name == "MasterClone" then v:Destroy() end
+	end
 	
 	for _, v in ipairs(character:GetDescendants()) do
 		if v:IsA("BasePart") and v.Name ~= "HumanoidRootPart" then v.Transparency = 0 end
@@ -163,15 +343,130 @@ end
 
 function PowerUpService.StartLoop()
 	task.spawn(function()
+		print("POWERUP: Starting Spawn Loop...")
 		while true do
-			local potionExists = workspace:FindFirstChild("GiantPotion")
-			local powerUpActive = isAnyPlayerPoweredUp()
+			local success, err = pcall(function()
+				local potionExists = workspace:FindFirstChild("GiantPotion")
+				if not potionExists then
+					local now = os.clock()
+					if now >= nextSpawnTime then
+						PowerUpService.SpawnPotion()
+					end
+				end
+			end)
 			
-			if not potionExists and not powerUpActive then
-				spawnPotion()
+			if not success then
+				warn("POWERUP: Loop Error: " .. tostring(err))
 			end
 			
-			task.wait(10) -- Check availability every 10 seconds
+			-- PERIODIC POWER-UP LOGIC
+			local now = os.clock()
+			for _, player in ipairs(Players:GetPlayers()) do
+				local char = player.Character
+				if char and char:GetAttribute("PowerUpActive") then
+					local root = char:FindFirstChild("HumanoidRootPart")
+					local hum = char:FindFirstChildOfClass("Humanoid")
+					if not root or not hum then continue end
+					
+					-- 1. Frost Trail (Existing)
+					if char:GetAttribute("HasFrostTrail") then
+						local trail = Instance.new("Part")
+						trail.Name = "FrostTrailPart"
+						trail.Size = Vector3.new(4, 0.4, 4)
+						trail.Position = root.Position - Vector3.new(0, 3, 0)
+						trail.Color = Color3.fromRGB(150, 230, 255) trail.Material = Enum.Material.Ice
+						trail.Anchored = true trail.CanCollide = false trail.Parent = workspace
+						task.delay(5, function() if trail then trail:Destroy() end end)
+					end
+					
+					-- 2. Ice Aura (Auto-Freeze)
+					if char:GetAttribute("HasIceAura") then
+						local lastAura = char:GetAttribute("LastAuraPulse") or 0
+						if now - lastAura > 1.0 then
+							char:SetAttribute("LastAuraPulse", now)
+							for _, p in ipairs(workspace:GetPartBoundsInRadius(root.Position, 18)) do
+								local m = p:FindFirstAncestorOfClass("Model")
+								if m and m:FindFirstChild("Humanoid") and m ~= char then
+									local FreezeService = require(ServerScriptService:WaitForChild("FreezeService"))
+									FreezeService.ApplyHit(m)
+								end
+							end
+						end
+					end
+					
+					-- 3. Meteor Rain
+					if char:GetAttribute("HasMeteorRain") then
+						local lastMeteor = char:GetAttribute("LastMeteorTime") or 0
+						if now - lastMeteor > 2.0 then
+							char:SetAttribute("LastMeteorTime", now)
+							local mpos = root.Position + Vector3.new(math.random(-20, 20), 50, math.random(-20, 20))
+							local met = Instance.new("Part")
+							met.Shape = Enum.PartType.Ball met.Size = Vector3.new(4, 4, 4)
+							met.Position = mpos met.Color = Color3.fromRGB(0, 200, 255)
+							met.Material = Enum.Material.Neon met.Parent = workspace
+							met.Touched:Connect(function(hit)
+								local m = hit.Parent:IsA("Model") and hit.Parent
+								if m and m:FindFirstChild("Humanoid") and m ~= char then
+									local FreezeService = require(ServerScriptService:WaitForChild("FreezeService"))
+									FreezeService.ApplyHit(m, 3) -- Strong hit
+								end
+								met:Destroy()
+							end)
+							task.delay(5, function() if met then met:Destroy() end end)
+						end
+					end
+					
+					-- 4. Magnetic Pull (Pull Enemies)
+					if char:GetAttribute("HasMagneticPull") then
+						for _, p in ipairs(workspace:GetPartBoundsInRadius(root.Position, 30)) do
+							local m = p:FindFirstAncestorOfClass("Model")
+							if m and m:FindFirstChild("Humanoid") and m ~= char then
+								local targetRoot = m:FindFirstChild("HumanoidRootPart")
+								if targetRoot then
+									local dir = (root.Position - targetRoot.Position).Unit
+									targetRoot:ApplyImpulse(dir * 1000)
+								end
+							end
+						end
+					end
+					
+					-- 5. Shockwave
+					if char:GetAttribute("HasShockwave") then
+						local lastShock = char:GetAttribute("LastShockTime") or 0
+						if now - lastShock > 1.5 then
+							char:SetAttribute("LastShockTime", now)
+							for _, p in ipairs(workspace:GetPartBoundsInRadius(root.Position, 25)) do
+								local m = p:FindFirstAncestorOfClass("Model")
+								if m and m:FindFirstChild("Humanoid") and m ~= char then
+									local targetRoot = m:FindFirstChild("HumanoidRootPart")
+									if targetRoot then
+										local dir = (targetRoot.Position - root.Position).Unit
+										targetRoot:ApplyImpulse(dir * 4000)
+									end
+								end
+							end
+						end
+					end
+					
+					-- 6. Flight
+					if char:GetAttribute("HasFlight") then
+						local bv = root:FindFirstChild("FlightVelocity")
+						if bv then
+							bv.Velocity = root.CFrame.LookVector * 40 + Vector3.new(0, 2, 0)
+						end
+					end
+					
+					-- 7. Regen (Health)
+					if char:GetAttribute("HasRegen") then
+						local hits = char:GetAttribute("HitsTaken") or 0
+						if hits > 0 then
+							char:SetAttribute("HitsTaken", hits - 0.2) -- Slow heal
+						end
+					end
+				end
+			end
+			
+			task.wait(0.2)
 		end
 	end)
 end
