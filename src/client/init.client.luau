@@ -74,7 +74,7 @@ local function fire(targetOverride)
 	if os.clock() - lastFire < GameConstants.FIRE_RATE then return end
 	
 	local character = player.Character
-	if not character then return end
+	if not character or character:GetAttribute("IsFrozen") then return end
 	local root = character:FindFirstChild("HumanoidRootPart")
 	if not root then return end
 	

@@ -101,7 +101,7 @@ function RollLogic.StartRolling(enemy, direction, pusher)
 		if connection then connection:Disconnect() end
 		
 		-- Unfreeze instead of destroying
-		FreezeService.UnfreezeEnemy(enemy)
+		FreezeService.UnfreezeCharacter(enemy)
 	end)
 end
 
