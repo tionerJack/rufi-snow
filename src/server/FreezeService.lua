@@ -96,9 +96,50 @@ function FreezeService.FreezeCharacter(char)
 		humanoid.JumpPower = 0 -- PvP restriction
 	end
 	
-	-- Visual Ice
+	-- Snowball Visual Transformation
+	local root = char:FindFirstChild("HumanoidRootPart")
+	if root then
+		local snowball = Instance.new("Part")
+		snowball.Name = "FrozenSnowball"
+		
+		-- Calculate size based on character scale
+		local height = 5
+		if char:GetAttribute("IsTitan") then height = 18
+		elseif char:GetAttribute("IsGiant") then height = 10
+		elseif char:GetAttribute("Scale") then height = 5 * char:GetAttribute("Scale") end
+		
+		snowball.Size = Vector3.new(height, height, height)
+		snowball.Shape = Enum.PartType.Ball
+		snowball.Color = Color3.fromRGB(240, 245, 255)
+		snowball.Material = Enum.Material.SmoothPlastic
+		snowball.CanCollide = false
+		snowball.CFrame = root.CFrame
+		snowball.Parent = char
+		
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = root
+		weld.Part1 = snowball
+		weld.Parent = snowball
+		
+		-- Add frosty texture/glow
+		local p = Instance.new("ParticleEmitter")
+		p.Texture = "rbxassetid://6071575923"
+		p.Size = NumberSequence.new(1, 0)
+		p.Transparency = NumberSequence.new(0, 1)
+		p.Lifetime = NumberRange.new(1)
+		p.Rate = 10
+		p.Speed = NumberRange.new(0)
+		p.Parent = snowball
+	end
+
+	-- Hide character and apply Visual Ice (to accessories)
 	for _, part in ipairs(char:GetDescendants()) do
-		if part:IsA("BasePart") then
+		if part:IsA("BasePart") and part.Name ~= "FrozenSnowball" then
+			if not part:GetAttribute("OriginalTransparency") then
+				part:SetAttribute("OriginalTransparency", part.Transparency)
+			end
+			part.Transparency = 1 -- Hide character inside snowball
+			
 			if not part:GetAttribute("OriginalColor") then
 				part:SetAttribute("OriginalColor", part.Color)
 			end
@@ -107,6 +148,11 @@ function FreezeService.FreezeCharacter(char)
 			end
 			part.Color = Color3.fromRGB(150, 200, 255)
 			part.Material = Enum.Material.Ice
+		elseif part:IsA("Decal") or part:IsA("Texture") then
+			if not part:GetAttribute("OriginalTransparency") then
+				part:SetAttribute("OriginalTransparency", part.Transparency)
+			end
+			part.Transparency = 1
 		end
 	end
 	
@@ -169,10 +215,21 @@ function FreezeService.UnfreezeCharacter(char)
 	
 	for _, part in ipairs(char:GetDescendants()) do
 		if part:IsA("BasePart") then
-			local originalColor = part:GetAttribute("OriginalColor")
-			if originalColor then part.Color = originalColor end
-			local originalMat = part:GetAttribute("OriginalMaterial")
-			if originalMat then part.Material = Enum.Material:FromValue(originalMat) end
+			if part.Name == "FrozenSnowball" then
+				part:Destroy()
+			else
+				local originalTrans = part:GetAttribute("OriginalTransparency")
+				if originalTrans then part.Transparency = originalTrans end
+				
+				local originalColor = part:GetAttribute("OriginalColor")
+				if originalColor then part.Color = originalColor end
+				
+				local originalMat = part:GetAttribute("OriginalMaterial")
+				if originalMat then part.Material = Enum.Material:FromValue(originalMat) end
+			end
+		elseif part:IsA("Decal") or part:IsA("Texture") then
+			local originalTrans = part:GetAttribute("OriginalTransparency")
+			if originalTrans then part.Transparency = originalTrans end
 		end
 	end
 	

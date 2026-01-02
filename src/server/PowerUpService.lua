@@ -150,6 +150,7 @@ function PowerUpService.ApplyBuff(character, powerKey)
 			humanoid.BodyWidthScale.Value *= 2
 			humanoid.BodyDepthScale.Value *= 2
 			humanoid.HeadScale.Value *= 2
+			task.defer(function() humanoid:BuildRigFromAttachments() end)
 		end
 		character:SetAttribute("IsGiant", true)
 		humanoid.JumpPower = 75 -- Scale jump with size
@@ -188,6 +189,7 @@ function PowerUpService.ApplyBuff(character, powerKey)
 			humanoid.BodyWidthScale.Value = 0.4
 			humanoid.BodyDepthScale.Value = 0.4
 			humanoid.HeadScale.Value = 0.4
+			task.defer(function() humanoid:BuildRigFromAttachments() end)
 		end
 		humanoid.WalkSpeed = 30
 	elseif powerKey == "FIRE" then
@@ -371,6 +373,10 @@ function PowerUpService.ApplyBuff(character, powerKey)
 	elseif powerKey == "CLONE" then
 		character:SetAttribute("HasMasterClones", true)
 		local CollectionService = game:GetService("CollectionService")
+		local root = character:FindFirstChild("HumanoidRootPart")
+		if not root then return end
+		
+		local clones = {}
 		for i = 1, 4 do
 			local decoyModel = Instance.new("Model")
 			decoyModel.Name = "MasterClone"
@@ -381,9 +387,8 @@ function PowerUpService.ApplyBuff(character, powerKey)
 			torso.Color = data.Color
 			torso.Material = Enum.Material.Ice
 			torso.Transparency = 0.3
-			torso.Anchored = false
+			torso.Anchored = true -- Improved: use manual anchor movement for smooth orbit
 			torso.CanCollide = false
-			torso.CFrame = character.PrimaryPart.CFrame * CFrame.new(math.random(-25, 25), 0, math.random(-25, 25))
 			torso.Parent = decoyModel
 			
 			local head = Instance.new("Part")
@@ -393,54 +398,55 @@ function PowerUpService.ApplyBuff(character, powerKey)
 			head.Color = data.Color
 			head.Material = Enum.Material.Ice
 			head.Transparency = 0.2
-			head.Anchored = false
+			head.Anchored = true
 			head.CanCollide = false
 			head.Parent = decoyModel
 			
-			local weld = Instance.new("WeldConstraint")
-			weld.Part0 = torso
-			weld.Part1 = head
-			head.CFrame = torso.CFrame * CFrame.new(0, 2.2, 0)
-			weld.Parent = torso
-
 			decoyModel.Parent = workspace
 			CollectionService:AddTag(torso, "Decoy")
-			
-			-- Floating Logic
-			local bp = Instance.new("BodyPosition")
-			bp.MaxForce = Vector3.new(1, 1, 1) * 20000
-			bp.Position = torso.Position + Vector3.new(0, 1, 0)
-			bp.Parent = torso
-			
-			local bg = Instance.new("BodyGyro")
-			bg.MaxTorque = Vector3.new(1, 1, 1) * 10000
-			bg.CFrame = torso.CFrame
-			bg.Parent = torso
 			
 			-- Frost Flow Particle
 			local p = Instance.new("ParticleEmitter")
 			p.Color = ColorSequence.new(data.Color)
 			p.Size = NumberSequence.new(0.4, 0)
 			p.Transparency = NumberSequence.new(0, 1)
-			p.Lifetime = NumberRange.new(1, 2)
-			p.Rate = 25
+			p.Lifetime = NumberRange.new(1)
+			p.Rate = 20
 			p.Speed = NumberRange.new(2, 5)
-			p.VelocitySpread = 360
 			p.Texture = "rbxassetid://6071575923"
 			p.Parent = torso
 			
-			-- Rotation Task
-			task.spawn(function()
-				while decoyModel.Parent do
-					if bg and bg.Parent then
-						bg.CFrame = bg.CFrame * CFrame.Angles(0, math.rad(3), 0)
-					end
-					task.wait(0.05)
+			-- Retribution: FREEZE ON TOUCH
+			torso.Touched:Connect(function(hit)
+				local m = hit:FindFirstAncestorOfClass("Model")
+				if m and m:FindFirstChild("Humanoid") and m ~= character then
+					local fs = require(script.Parent.FreezeService)
+					fs.ApplyHit(m)
 				end
 			end)
 			
+			table.insert(clones, {model = decoyModel, torso = torso, head = head, offset = (i-1) * (math.pi*2/4)})
 			task.delay(GameConstants.POWERUP_DURATION, function() if decoyModel then decoyModel:Destroy() end end)
 		end
+		
+		-- Orbital Task
+		task.spawn(function()
+			local startTime = os.clock()
+			while character.Parent and character:GetAttribute("HasMasterClones") and #clones > 0 do
+				local now = os.clock()
+				local angleBase = now * 3 -- Rotation speed
+				
+				for _, c in ipairs(clones) do
+					if c.model.Parent then
+						local angle = angleBase + c.offset
+						local targetPos = root.Position + Vector3.new(math.cos(angle) * 12, 1.5, math.sin(angle) * 12)
+						c.torso.CFrame = CFrame.new(targetPos, root.Position)
+						c.head.CFrame = c.torso.CFrame * CFrame.new(0, 2.2, 0)
+					end
+				end
+				task.wait(0.01)
+			end
+		end)
 	elseif powerKey == "VENOM" then
 		character:SetAttribute("HasVenom", true)
 	elseif powerKey == "THORN" then
@@ -466,6 +472,7 @@ function PowerUpService.ApplyBuff(character, powerKey)
 			humanoid.BodyWidthScale.Value = 4
 			humanoid.BodyDepthScale.Value = 4
 			humanoid.HeadScale.Value = 4
+			task.defer(function() humanoid:BuildRigFromAttachments() end)
 		end
 		character:SetAttribute("IsTitan", true)
 		humanoid.JumpPower = 100
@@ -597,6 +604,7 @@ function PowerUpService.RemoveBuff(character)
 			humanoid.BodyWidthScale.Value = 1
 			humanoid.BodyDepthScale.Value = 1
 			humanoid.HeadScale.Value = 1
+			task.defer(function() humanoid:BuildRigFromAttachments() end)
 		end
 	end
 	
