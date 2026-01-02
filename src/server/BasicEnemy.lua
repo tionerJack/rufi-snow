@@ -52,21 +52,39 @@ function BasicEnemy.new(model)
 	
 local PathfindingService = game:GetService("PathfindingService")
 
-	local function getNearestPlayer(range)
-		local closestPlayer = nil
+	local function getNearestTarget(range)
+		local closestTarget = nil
 		local shortestDistance = range or 60
 
+		-- 1. Check Players
 		for _, player in ipairs(game.Players:GetPlayers()) do
 			local char = player.Character
 			if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
+				-- STEALTH CHECK
+				if char:GetAttribute("IsInvis") or char:GetAttribute("HasPhantom") then continue end
+				
 				local dist = (self.root.Position - char.HumanoidRootPart.Position).Magnitude
 				if dist < shortestDistance then
 					shortestDistance = dist
-					closestPlayer = char
+					closestTarget = char
 				end
 			end
 		end
-		return closestPlayer
+		
+		-- 2. Check Decoys (Distraction)
+		for _, v in ipairs(workspace:GetDescendants()) do
+			if v.Name == "MirageDecoy" or v.Name == "MasterClone" then
+				if v:IsA("BasePart") then
+					local dist = (self.root.Position - v.Position).Magnitude
+					if dist < shortestDistance then
+						shortestDistance = dist
+						closestTarget = v
+					end
+				end
+			end
+		end
+		
+		return closestTarget
 	end
 
 	-- AI Loop: Pathfinding Pursuit
@@ -89,11 +107,11 @@ local PathfindingService = game:GetService("PathfindingService")
 				
 				-- Aggression Scaling: Sensing range grows with hits (Desperate)
 				local detectionRange = 80 + (freezeHits * 40)
-				local targetPlayer = getNearestPlayer(detectionRange)
+				local targetPlayer = getNearestTarget(detectionRange)
 				
 				if targetPlayer then
 					-- PATHFINDING CHASE
-					local targetPos = targetPlayer.HumanoidRootPart.Position
+					local targetPos = targetPlayer:IsA("Model") and targetPlayer.HumanoidRootPart.Position or targetPlayer.Position
 					local success, errorMessage = pcall(function()
 						path:ComputeAsync(self.root.Position, targetPos)
 					end)

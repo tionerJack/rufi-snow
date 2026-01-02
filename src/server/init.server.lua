@@ -41,6 +41,7 @@ end
 
 remoteHit.OnServerEvent:Connect(function(player, hitPart)
 	if not hitPart then return end
+	local char = player.Character
 	local targetModel = hitPart:FindFirstAncestorOfClass("Model")
 	if not targetModel or not targetModel:FindFirstChildOfClass("Humanoid") then return end
 	if targetModel == player.Character then return end

@@ -149,6 +149,7 @@ function PowerUpService.ApplyBuff(character, powerKey)
 			decoy.CFrame = character.PrimaryPart.CFrame * CFrame.new(math.random(-10, 10), 0, math.random(-10, 10))
 			decoy.Anchored = true
 			decoy.CanCollide = false
+			decoy.CanTouch = false
 			decoy.Parent = character
 			task.delay(15, function() if decoy then decoy:Destroy() end end)
 		end
@@ -202,6 +203,8 @@ function PowerUpService.ApplyBuff(character, powerKey)
 			decoy.Material = Enum.Material.Ice
 			decoy.CFrame = character.PrimaryPart.CFrame * CFrame.new(math.random(-15, 15), 0, math.random(-15, 15))
 			decoy.Anchored = false
+			decoy.CanCollide = false
+			decoy.CanTouch = false
 			decoy.Parent = character
 			local bp = Instance.new("BodyPosition")
 			bp.MaxForce = Vector3.new(1, 0, 1) * 10000
@@ -461,6 +464,28 @@ function PowerUpService.StartLoop()
 						local hits = char:GetAttribute("HitsTaken") or 0
 						if hits > 0 then
 							char:SetAttribute("HitsTaken", hits - 0.2) -- Slow heal
+						end
+					end
+					-- 8. Blizzard (Area control)
+					if char:GetAttribute("HasBlizzard") then
+						local lastBliz = char:GetAttribute("LastBlizTime") or 0
+						if now - lastBliz > 1.0 then
+							char:SetAttribute("LastBlizTime", now)
+							local cloud = Instance.new("Smoke")
+							cloud.Color = Color3.fromRGB(200, 240, 255)
+							cloud.Size = 20 cloud.Opacity = 0.5 cloud.Parent = root
+							task.delay(1.5, function() cloud:Destroy() end)
+							
+							for _, p in ipairs(workspace:GetPartBoundsInRadius(root.Position, 40)) do
+								local m = p:FindFirstAncestorOfClass("Model")
+								if m and m:FindFirstChild("Humanoid") and m ~= char then
+									local thum = m.Humanoid
+									thum:TakeDamage(2)
+									local oldSpeed = thum.WalkSpeed
+									thum.WalkSpeed = 8
+									task.delay(1, function() if thum then thum.WalkSpeed = oldSpeed end end)
+								end
+							end
 						end
 					end
 				end
