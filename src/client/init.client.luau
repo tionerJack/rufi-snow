@@ -65,6 +65,8 @@ end
 
 ReplicatedStorage:WaitForChild("PowerUpNotice").OnClientEvent:Connect(showAnnouncement)
 
+local shoulderC0Cache = {}
+
 -- Procedural Animation Helper
 local function playProceduralAnim(character, animType)
 	local isR15 = character.Humanoid.RigType == Enum.HumanoidRigType.R15
@@ -75,8 +77,20 @@ local function playProceduralAnim(character, animType)
 	
 	if not rightShoulder or not rightShoulder:IsA("Motor6D") then return end
 	
-	local rightOrigC0 = rightShoulder.C0
-	local leftOrigC0 = leftShoulder and leftShoulder.C0
+	-- CACHE ORIGINAL C0 to prevent "dislocation" drift
+	if not shoulderC0Cache[character] then
+		shoulderC0Cache[character] = {
+			right = rightShoulder.C0,
+			left = leftShoulder and leftShoulder.C0
+		}
+		-- Cleanup when character leaves
+		character.AncestryChanged:Connect(function(_, parent)
+			if not parent then shoulderC0Cache[character] = nil end
+		end)
+	end
+	
+	local rightOrigC0 = shoulderC0Cache[character].right
+	local leftOrigC0 = shoulderC0Cache[character].left
 	
 	if animType == "Fire" then
 		-- Snappy throw (Right arm only)
