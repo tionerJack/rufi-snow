@@ -123,7 +123,14 @@ function RollLogic.StartRolling(enemy, direction, pusher)
 		if ballVisual then ballVisual:Destroy() end
 		if connection then connection:Disconnect() end
 		
-		-- Unfreeze instead of destroying
+		-- FATALITY: Die after roll ends
+		local hum = enemy:FindFirstChildOfClass("Humanoid")
+		if hum then
+			print(string.format("ROLL FATALITY: %s died after rolling.", enemy.Name))
+			hum.Health = 0
+		end
+		
+		-- Cleanup visuals if still frozen
 		FreezeService.UnfreezeCharacter(enemy)
 	end)
 end

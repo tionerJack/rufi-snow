@@ -111,7 +111,7 @@ local PathfindingService = game:GetService("PathfindingService")
 
 	-- AI Loop: Pathfinding Pursuit
 	task.spawn(function()
-		local baseSpeed = 16 + (model:GetAttribute("Scale") or 1) * 2
+		local baseSpeed = self.model:GetAttribute("BaseSpeed") or 14
 		local path = PathfindingService:CreatePath({
 			AgentRadius = 2 * (model:GetAttribute("Scale") or 1),
 			AgentHeight = 5 * (model:GetAttribute("Scale") or 1),
@@ -125,9 +125,9 @@ local PathfindingService = game:GetService("PathfindingService")
 			if not isFrozen then
 				-- Speed Scaling: Slower as they freeze
 				local speedRatio = 1 - (freezeHits / 3) 
-				self.humanoid.WalkSpeed = math.max(6, baseSpeed * speedRatio)
+				self.humanoid.WalkSpeed = math.max(4, baseSpeed * speedRatio)
 				
-				-- Aggression Scaling: Sensing range grows with hits (Desperate)
+				-- Aggression Scaling: Sensing range grows with hits
 				local detectionRange = 80 + (freezeHits * 40)
 				local targetPlayer = getNearestTarget(detectionRange)
 				
@@ -137,7 +137,7 @@ local PathfindingService = game:GetService("PathfindingService")
 					local success, errorMessage = pcall(function()
 						path:ComputeAsync(self.root.Position, targetPos)
 					end)
-
+ 
 					if success and path.Status == Enum.PathStatus.Success then
 						local waypoints = path:GetWaypoints()
 						if #waypoints >= 2 then
@@ -160,7 +160,7 @@ local PathfindingService = game:GetService("PathfindingService")
 				self.humanoid.WalkSpeed = 0
 			end
 			
-			task.wait(0.3) -- Stable update frequency
+			task.wait(0.3)
 		end
 	end)
 	

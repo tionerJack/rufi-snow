@@ -242,18 +242,24 @@ local function getRandomSpawnPos()
 end
 
 local enemyCounter = 0
-local function createTestEnemy(pos)
+local function createTestEnemy(pos, level)
 	enemyCounter += 1
+	level = level or 1
 	
-	-- Random Variation (1 to 5)
+	-- Level-based Progression
 	local variant = math.random(1, 5)
-	local scales = {0.6, 0.8, 1.0, 1.3, 1.6}
-	local scale = scales[variant]
+	local baseScales = {0.35, 0.4, 0.45, 0.5, 0.55}
+	-- Stats start low (tiny and slow) and grow significantly
+	local scale = baseScales[variant] + (level - 1) * 0.2
+	local baseSpeed = (2 + variant) + (level * 1.5) -- Lvl 1: 3.5 to 7.5 speed (Very slow)
+	local maxHealth = 60 + (level * 30)
 	
 	local dummy = Instance.new("Model")
-	dummy.Name = "CuteImp_" .. enemyCounter
+	dummy.Name = "IceImp_Lvl" .. level
 	dummy:SetAttribute("EnemyID", enemyCounter)
+	dummy:SetAttribute("Level", level)
 	dummy:SetAttribute("Scale", scale)
+	dummy:SetAttribute("BaseSpeed", baseSpeed)
 	
 	-- Colors (Random shades of red/crimson)
 	local baseColor = Color3.fromRGB(200 + math.random(-20, 20), 40 + math.random(-20, 20), 40)
@@ -379,20 +385,23 @@ local function createTestEnemy(pos)
 	createLeg(-1)
 	
 	local hum = Instance.new("Humanoid")
-	hum.WalkSpeed = 16 + (variant * 2) -- Matching player speed (16)
-	hum.HipHeight = 1.4 * scale -- Adjust based on leg position/size
+	hum.MaxHealth = maxHealth
+	hum.Health = maxHealth
+	hum.WalkSpeed = baseSpeed
+	hum.HipHeight = 1.4 * scale
 	hum.Parent = dummy
 	
-	-- Respawn logic
+	-- Respawn logic with increased difficulty
 	hum.Died:Connect(function()
 		-- Bonus: If no potion active, spawn one immediately!
 		if not workspace:FindFirstChild("PotionCrystal") then
 			print("ENEMY DIED: Spawning reward potion survivor!")
-			PowerUpService.SpawnPotion(true) -- Bypass timer
+			PowerUpService.SpawnPotion(true)
 		end
 		
 		task.wait(3)
-		createTestEnemy(getRandomSpawnPos())
+		-- Spawn a stronger version!
+		createTestEnemy(getRandomSpawnPos(), level + 1)
 		dummy:Destroy()
 	end)
 	
@@ -404,7 +413,7 @@ end
 
 task.delay(1, function()
 	for i = 1, 10 do
-		createTestEnemy(getRandomSpawnPos())
+		createTestEnemy(getRandomSpawnPos(), 1)
 	end
 end)
 

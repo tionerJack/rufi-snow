@@ -52,12 +52,15 @@ function FreezeService.ApplyHit(char, attacker)
 	local isPlayer = Players:GetPlayerFromCharacter(char)
 	print(string.format("FREEZE: Hit %s (%s) by %s", char.Name, isPlayer and "Player" or "Enemy", attacker and attacker.Name or "Unknown"))
 	
-	-- RESISTANCE CHECK: Giants and Titans are harder to freeze
-	local hitWeight = 1
+	-- RESISTANCE CHECK: Resistance scales with Level
+	local level = char:GetAttribute("Level") or 1
+	-- Base weight 3 means Lvl 1 freezes in 1 hit (since hits_required = 3)
+	local hitWeight = 3 / (1 + (level - 1) * 0.8)
+	
 	if char:GetAttribute("IsTitan") then
-		hitWeight = 0.25
+		hitWeight *= 0.25
 	elseif char:GetAttribute("IsGiant") then
-		hitWeight = 0.5
+		hitWeight *= 0.5
 	end
 	
 	local currentHits = char:GetAttribute("FreezeHits") or 0
