@@ -242,7 +242,7 @@ local function getRandomSpawnPos()
 end
 
 local enemyCounter = 0
-local function createTestEnemy(pos, level)
+local function createTestEnemy(pos, level, killerName)
 	enemyCounter += 1
 	level = level or 1
 	
@@ -251,11 +251,17 @@ local function createTestEnemy(pos, level)
 	local baseScales = {0.35, 0.4, 0.45, 0.5, 0.55}
 	-- Stats start low (tiny and slow) and grow significantly
 	local scale = baseScales[variant] + (level - 1) * 0.2
-	local baseSpeed = (2 + variant) + (level * 1.5) -- Lvl 1: 3.5 to 7.5 speed (Very slow)
+	local baseSpeed = (2 + variant) + (level * 1.2) -- Lvl 1: 4.2 to 8.2 speed (Very slow)
 	local maxHealth = 60 + (level * 30)
 	
 	local dummy = Instance.new("Model")
-	dummy.Name = "IceImp_Lvl" .. level
+	-- Dynamic Naming with Levels
+	if killerName then
+		dummy.Name = string.format("%s Imp [Lvl %d]", killerName, level)
+	else
+		dummy.Name = string.format("Fire Imp [Lvl %d]", level)
+	end
+	
 	dummy:SetAttribute("EnemyID", enemyCounter)
 	dummy:SetAttribute("Level", level)
 	dummy:SetAttribute("Scale", scale)
@@ -273,6 +279,26 @@ local function createTestEnemy(pos, level)
 	body.Color = baseColor
 	body.Material = Enum.Material.Plastic
 	body.Parent = dummy
+	
+	body.Parent = dummy
+	
+	-- FIRE PARTICLES UNDERNEATH (Using Attachment for better stability)
+	local fireAttach = Instance.new("Attachment")
+	fireAttach.Name = "FireAttachment"
+	fireAttach.Position = Vector3.new(0, -0.6, 0) -- Bottom of the body
+	fireAttach.Parent = body
+	
+	local particles = Instance.new("ParticleEmitter")
+	particles.Texture = "rbxassetid://242200897"
+	particles.Color = ColorSequence.new(Color3.fromRGB(255, 100, 0), Color3.fromRGB(255, 200, 0))
+	particles.Size = NumberSequence.new(0.6 * scale, 1.2 * scale)
+	particles.Lifetime = NumberRange.new(0.3, 0.7)
+	particles.Rate = 35 -- More intense
+	particles.Speed = NumberRange.new(2, 5)
+	particles.SpreadAngle = Vector2.new(15, 15)
+	particles.LightEmission = 0.8 -- Make it glow
+	particles.LightInfluence = 0
+	particles.Parent = fireAttach
 	
 	-- HEAD
 	local head = Instance.new("Part")
@@ -391,8 +417,10 @@ local function createTestEnemy(pos, level)
 	hum.HipHeight = 1.4 * scale
 	hum.Parent = dummy
 	
-	-- Respawn logic with increased difficulty
+	-- Respawn logic with increased difficulty and name inheritance
 	hum.Died:Connect(function()
+		local killer = dummy:GetAttribute("KillerName")
+		
 		-- Bonus: If no potion active, spawn one immediately!
 		if not workspace:FindFirstChild("PotionCrystal") then
 			print("ENEMY DIED: Spawning reward potion survivor!")
@@ -400,8 +428,8 @@ local function createTestEnemy(pos, level)
 		end
 		
 		task.wait(3)
-		-- Spawn a stronger version!
-		createTestEnemy(getRandomSpawnPos(), level + 1)
+		-- Spawn a stronger version named after the killer!
+		createTestEnemy(getRandomSpawnPos(), level + 1, killer)
 		dummy:Destroy()
 	end)
 	

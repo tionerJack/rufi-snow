@@ -11,6 +11,9 @@ function RollLogic.StartRolling(enemy, direction, pusher)
 	if enemy:GetAttribute("IsRolling") then return end
 	enemy:SetAttribute("IsRolling", true)
 	enemy:SetAttribute("PusherStartTime", os.clock())
+	if pusher then
+		enemy:SetAttribute("KillerName", pusher.Name)
+	end
 	
 	local root = enemy:FindFirstChild("HumanoidRootPart")
 	if not root then return end
