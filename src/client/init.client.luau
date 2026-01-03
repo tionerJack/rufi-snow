@@ -8,9 +8,15 @@ print("--- FROST BROS DEBUG: CLIENT STARTING ---")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameConstants = require(Shared:WaitForChild("GameConstants"))
+local Onboarding = require(script:WaitForChild("Onboarding"))
 
 local player = Players.LocalPlayer
 local mouse = player:GetMouse()
+
+-- Start Onboarding
+task.spawn(function()
+	Onboarding.start()
+end)
 local lastFire = 0
 local activePowerHUD = nil
 local activeTweens = {}
