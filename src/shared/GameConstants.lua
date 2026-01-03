@@ -59,6 +59,27 @@ local GameConstants = {
 		SHRINK = {Name = "Rayo Reductor", Color = Color3.fromRGB(106, 90, 205)},
 		FLY = {Name = "Vuelo Glacial", Color = Color3.fromRGB(135, 206, 250)},
 		TIME = {Name = "Rebobinar", Color = Color3.fromRGB(255, 140, 0)},
+	},
+
+	POWERUP_CATEGORIES = {
+		ATTACK = {
+			Name = "PODER DE ATAQUE",
+			Emoji = "⚡",
+			Color = Color3.fromRGB(255, 50, 50),
+			Abilities = {"TRIPLE", "MEGA", "RAPID", "EXPLOSIVE", "FIRE", "BOUNCE", "BERSERK", "STUN", "BEAM", "LASER", "SHRINK", "VENOM"}
+		},
+		DEFENSE = {
+			Name = "PODER DEFENSIVO",
+			Emoji = "🛡",
+			Color = Color3.fromRGB(50, 150, 255),
+			Abilities = {"SHIELD", "GOD", "REGEN", "WALL", "INVIS", "THORN", "AURA", "PHANTOM"}
+		},
+		SPECIAL = {
+			Name = "PODER ESPECIAL",
+			Emoji = "🌀",
+			Color = Color3.fromRGB(200, 50, 255),
+			Abilities = {"GIANT", "SPEED", "JUMP", "MINI", "GRAVITY", "FROSTBIT", "VORTEX", "MIRAGE", "TELEPORT", "SLOMO", "METEOR", "SHOCK", "DASH", "CLONE", "TITAN", "PULL", "BLIZZARD", "FLY", "TIME"}
+		}
 	}
 }
 

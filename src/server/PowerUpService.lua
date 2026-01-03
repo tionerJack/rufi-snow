@@ -9,19 +9,15 @@ local PowerUpService = {}
 local nextSpawnTime = 0
 
 function PowerUpService.SpawnPotion(bypassTimer)
-	if bypassTimer then
-		nextSpawnTime = 0
-	end
+	-- Ensure only one exists unless bypassed
+	if not bypassTimer and workspace:FindFirstChild("PotionCrystal") then return end
 	
-	if os.clock() < nextSpawnTime then return end
+	local categoryKeys = {}
+	for k, _ in pairs(GameConstants.POWERUP_CATEGORIES) do table.insert(categoryKeys, k) end
+	local chosenCategoryKey = categoryKeys[math.random(1, #categoryKeys)]
+	local chosenCategory = GameConstants.POWERUP_CATEGORIES[chosenCategoryKey]
 	
-	local typeKeys = {}
-	for k, _ in pairs(GameConstants.POWERUP_TYPES) do table.insert(typeKeys, k) end
-	local chosenKey = typeKeys[math.random(1, #typeKeys)]
-	local chosenData = GameConstants.POWERUP_TYPES[chosenKey]
-	
-	print("POWERUP: Spawning Crystal Core of " .. chosenData.Name)
-	nextSpawnTime = os.clock() + 5 -- Set early lock to avoid loop re-entry
+	print("POWERUP: Spawning Category Crystal: " .. chosenCategory.Name)
 	
 	-- 1. Outer Crystal Container
 	local container = Instance.new("Part")
@@ -33,14 +29,14 @@ function PowerUpService.SpawnPotion(bypassTimer)
 	container.Reflectance = 0.2
 	container.Anchored = true
 	container.CanCollide = false
-	container:SetAttribute("PowerType", chosenKey)
+	container:SetAttribute("CategoryType", chosenCategoryKey)
 	
 	-- 2. Internal Magic Core
 	local core = Instance.new("Part")
 	core.Name = "LiquidCore"
 	core.Shape = Enum.PartType.Ball
 	core.Size = Vector3.new(1.4, 1.8, 1.4)
-	core.Color = chosenData.Color
+	core.Color = chosenCategory.Color
 	core.Material = Enum.Material.Neon
 	core.Anchored = true
 	core.CanCollide = false
@@ -48,14 +44,14 @@ function PowerUpService.SpawnPotion(bypassTimer)
 	
 	-- 3. Point Light for Glow
 	local light = Instance.new("PointLight")
-	light.Color = chosenData.Color
+	light.Color = chosenCategory.Color
 	light.Range = 10
 	light.Brightness = 3
 	light.Parent = core
 	
 	-- 4. Internal Magical Bubbles
 	local p = Instance.new("ParticleEmitter")
-	p.Color = ColorSequence.new(chosenData.Color)
+	p.Color = ColorSequence.new(chosenCategory.Color)
 	p.Size = NumberSequence.new(0.3, 0)
 	p.Transparency = NumberSequence.new(0.5, 1)
 	p.Lifetime = NumberRange.new(1, 2)
@@ -79,11 +75,7 @@ function PowerUpService.SpawnPotion(bypassTimer)
 	core.Position = container.Position
 	container.Parent = workspace
 	
-	-- Notification of Spawn
-	local remoteNotice = ReplicatedStorage:FindFirstChild("PowerUpNotice")
-	if remoteNotice then
-		remoteNotice:FireAllClients("SERVER", chosenKey, "SPAWN")
-	end
+	-- (Spawn notification disabled to reduce spam)
 	
 	-- Pulsing Core Animation
 	task.spawn(function()
@@ -119,8 +111,18 @@ function PowerUpService.SpawnPotion(bypassTimer)
 		if player and not character:GetAttribute("PowerUpActive") then
 			connection:Disconnect()
 			container:Destroy()
-			nextSpawnTime = os.clock() + 5
-			PowerUpService.ApplyBuff(character, chosenKey)
+			
+			-- Choose random ability from category
+			local categoryData = GameConstants.POWERUP_CATEGORIES[chosenCategoryKey]
+			local abilities = categoryData.Abilities
+			local chosenAbility = abilities[math.random(1, #abilities)]
+			
+			PowerUpService.ApplyBuff(character, chosenAbility)
+			
+			-- Respawn immediately
+			task.delay(1, function()
+				PowerUpService.SpawnPotion()
+			end)
 		end
 	end)
 end

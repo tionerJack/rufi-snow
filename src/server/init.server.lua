@@ -358,8 +358,8 @@ local function createTestEnemy(pos)
 	-- Respawn logic
 	hum.Died:Connect(function()
 		-- Bonus: If no potion active, spawn one immediately!
-		if not workspace:FindFirstChild("GiantPotion") then
-			print("ENEMY DIED: Spawning reward potion!")
+		if not workspace:FindFirstChild("PotionCrystal") then
+			print("ENEMY DIED: Spawning reward potion survivor!")
 			PowerUpService.SpawnPotion(true) -- Bypass timer
 		end
 		

@@ -60,9 +60,6 @@ end
 
 -- UI Notification System
 local function showAnnouncement(playerName, powerKey, actionType)
-	local data = GameConstants.POWERUP_TYPES[powerKey]
-	if not data then return end
-	
 	local gui = player.PlayerGui:FindFirstChild("Announcements") or Instance.new("ScreenGui")
 	gui.Name = "Announcements"
 	gui.ResetOnSpawn = false
@@ -74,19 +71,28 @@ local function showAnnouncement(playerName, powerKey, actionType)
 	label.BackgroundTransparency = 1
 	label.Font = Enum.Font.FredokaOne
 	label.TextSize = 30
-	label.TextColor3 = data.Color
+	local data = GameConstants.POWERUP_TYPES[powerKey]
+	local categoryData = GameConstants.POWERUP_CATEGORIES[powerKey]
 	
-	if actionType == "SPAWN" then
-		label.Text = string.format("¡Ha aparecido una Pócima de %s!", data.Name:upper())
+	if actionType == "SPAWN_CATEGORY" then
+		if not categoryData then label:Destroy() return end
+		label.TextColor3 = categoryData.Color
+		label.Text = string.format("%s ¡HA APARECIDO: %s! %s", categoryData.Emoji, categoryData.Name:upper(), categoryData.Emoji)
 	else
-		label.Text = string.format("¡%s obtuvo el poder: %s!", playerName:upper(), data.Name:upper())
+		if not data then label:Destroy() return end
+		label.TextColor3 = data.Color
+		if actionType == "SPAWN" then
+			label.Text = string.format("¡Ha aparecido una Pócima de %s!", data.Name:upper())
+		else
+			label.Text = string.format("¡%s OBTUVO EL PODER: %s!", playerName:upper(), data.Name:upper())
+		end
 	end
 	
 	label.TextStrokeTransparency = 0.5
 	label.Parent = gui
 	
 	-- Manage LOCAL PLAYER HUD
-	if actionType == "COLLECT" and playerName == player.Name then
+	if actionType == "COLLECT" and playerName == player.Name and data then
 		if activePowerHUD then activePowerHUD:Destroy() end
 		
 		local hud = Instance.new("Frame")
@@ -119,14 +125,18 @@ local function showAnnouncement(playerName, powerKey, actionType)
 		
 		task.spawn(function()
 			local timeLeft = GameConstants.POWERUP_DURATION
-			while timeLeft > 0 and hud.Parent do
+			local currentPowerName = data.Name
+			while timeLeft > 0 and hud.Parent and activePowerHUD == hud do
 				timeLeft -= task.wait(0.1)
-				textLabel.Text = string.format("%s\n%.1fs", data.Name:upper(), math.max(0, timeLeft))
+				textLabel.Text = string.format("%s\n%.1fs", currentPowerName:upper(), math.max(0, timeLeft))
 				if timeLeft < 3 then
 					textLabel.TextColor3 = (math.floor(timeLeft * 10) % 2 == 0) and Color3.new(1, 0, 0) or Color3.new(1, 1, 1)
 				end
 			end
-			if hud.Parent then hud:Destroy() end
+			if hud.Parent and activePowerHUD == hud then 
+				hud:Destroy()
+				activePowerHUD = nil
+			end
 		end)
 	end
 
