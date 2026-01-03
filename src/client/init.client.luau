@@ -11,7 +11,9 @@ local GameConstants = require(Shared:WaitForChild("GameConstants"))
 local Onboarding = require(script:WaitForChild("Onboarding"))
 
 local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
 local mouse = player:GetMouse()
+print("CLIENT: PlayerGui Loaded and Ready")
 
 -- Start Onboarding
 task.spawn(function()
@@ -428,4 +430,132 @@ game:GetService("RunService").Heartbeat:Connect(function()
 	end
 end)
 
-print("--- FROST BROS CLIENT: GUN READY ---")
+-- Helper for Announcements GUI
+local function getAnnouncementGui()
+	local gui = player.PlayerGui:FindFirstChild("Announcements")
+	if not gui then
+		gui = Instance.new("ScreenGui")
+		gui.Name = "Announcements"
+		gui.ResetOnSpawn = false
+		gui.DisplayOrder = 200 -- Always on top
+		gui.Parent = player.PlayerGui
+	end
+	return gui
+end
+
+-- Gameplay Feedback System (Shake, Flash, Multi-kill)
+local function handleGameplayFeedback(feedbackType, ...)
+	local args = {...}
+	print("CLIENT: Received Feedback Event:", feedbackType) -- Debug Log
+	
+	if feedbackType == "CameraShake" then
+		local intensity = args[1] or 1
+		local cam = workspace.CurrentCamera
+		if cam then
+			task.spawn(function()
+				local duration = 0.3
+				local start = os.clock()
+				while os.clock() - start < duration do
+					local elapsed = os.clock() - start
+					local dampen = 1 - (elapsed / duration)
+					local offset = Vector3.new(
+						(math.random() - 0.5) * intensity * dampen,
+						(math.random() - 0.5) * intensity * dampen,
+						(math.random() - 0.5) * intensity * dampen
+					)
+					cam.CFrame = cam.CFrame * CFrame.new(offset)
+					task.wait()
+				end
+			end)
+		end
+		
+	elseif feedbackType == "FreezeFlash" then
+		print("CLIENT: Displaying Freeze Flash")
+		local gui = getAnnouncementGui()
+		local flash = Instance.new("Frame")
+		flash.Size = UDim2.new(1, 0, 1, 0)
+		flash.BackgroundColor3 = Color3.fromRGB(150, 230, 255)
+		flash.BackgroundTransparency = 0.4
+		flash.ZIndex = 100
+		flash.Parent = gui
+		
+		TweenService:Create(flash, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = 1}):Play()
+		task.delay(0.5, function() if flash then flash:Destroy() end end)
+		
+	elseif feedbackType == "FreezeSuccess" then
+		-- Hitmarker / Success effect for the attacker
+		local gui = getAnnouncementGui()
+		local hitLabel = Instance.new("TextLabel")
+		hitLabel.Text = "¡OBJETIVO CONGELADO!"
+		hitLabel.Size = UDim2.new(0, 200, 0, 50)
+		hitLabel.Position = UDim2.new(0.5, -100, 0.45, -25)
+		hitLabel.TextColor3 = Color3.fromRGB(0, 255, 255)
+		hitLabel.Font = Enum.Font.FredokaOne
+		hitLabel.TextSize = 24
+		hitLabel.BackgroundTransparency = 1
+		hitLabel.Parent = gui
+		
+		local stroke = Instance.new("UIStroke")
+		stroke.Thickness = 2
+		stroke.Parent = hitLabel
+		
+		TweenService:Create(hitLabel, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Position = UDim2.new(0.5, -100, 0.35, -25), TextTransparency = 1}):Play()
+		task.delay(0.6, function() if hitLabel then hitLabel:Destroy() end end)
+		
+	elseif feedbackType == "FreezeSound" then
+		local pos = args[1]
+		local sound = Instance.new("Sound")
+		sound.SoundId = "rbxassetid://15264875323" 
+		sound.Volume = 1
+		if pos then
+			local attach = Instance.new("Attachment", workspace.Terrain)
+			attach.Position = pos
+			sound.Parent = attach
+			sound:Play()
+			task.delay(5, function() if attach then attach:Destroy() end end)
+		else
+			sound.Parent = player.Character or workspace
+			sound:Play()
+			task.delay(5, function() if sound then sound:Destroy() end end)
+		end
+
+	elseif feedbackType == "MultiKill" then
+		local killerName = args[1]
+		local combo = args[2]
+		print("CLIENT: Multi-Kill Announcement for", killerName, "Combo:", combo)
+		
+		local gui = getAnnouncementGui()
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.new(0.8, 0, 0.2, 0)
+		label.Position = UDim2.new(0.1, 0, 0.4, 0)
+		label.BackgroundTransparency = 1
+		label.Font = Enum.Font.FredokaOne
+		label.TextColor3 = Color3.fromRGB(255, 50, 50)
+		label.TextSize = 65
+		label.Text = string.format("¡ICE RAMPAGE x%d!\n(%s)", combo, killerName:upper())
+		label.Rotation = math.random(-8, 8)
+		label.Parent = gui
+		
+		local stroke = Instance.new("UIStroke")
+		stroke.Thickness = 5
+		stroke.Color = Color3.new(1, 1, 1)
+		stroke.Parent = label
+		
+		-- Pop Animation
+		label.Size = UDim2.new(0, 0, 0, 0)
+		local t1 = TweenService:Create(label, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0.8, 0, 0.2, 0)})
+		t1:Play()
+		
+		task.delay(2.5, function()
+			if label then
+				local t2 = TweenService:Create(label, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {TextTransparency = 1, TextStrokeTransparency = 1, Position = UDim2.new(0.1, 0, 0.3, 0)})
+				t2:Play()
+				t2.Completed:Connect(function() if label then label:Destroy() end end)
+			end
+		end)
+	end
+end
+
+ReplicatedStorage:WaitForChild("GameplayFeedback").OnClientEvent:Connect(handleGameplayFeedback)
+
+print("--- FROST BROS CLIENT: READY WITH FEEDBACK ---")

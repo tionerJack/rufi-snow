@@ -423,7 +423,8 @@ function PowerUpService.ApplyBuff(character, powerKey)
 				local m = hit:FindFirstAncestorOfClass("Model")
 				if m and m:FindFirstChild("Humanoid") and m ~= character then
 					local fs = require(script.Parent.FreezeService)
-					fs.ApplyHit(m)
+					local owner = Players:GetPlayerFromCharacter(character)
+					fs.ApplyHit(m, owner)
 				end
 			end)
 			
@@ -684,7 +685,7 @@ function PowerUpService.StartLoop()
 							local m = hit.Parent:IsA("Model") and hit.Parent
 							if m and m:FindFirstChild("Humanoid") and m ~= char then
 								local fs = require(ServerScriptService:WaitForChild("FreezeService"))
-								fs.ApplyHit(m)
+								fs.ApplyHit(m, player)
 							end
 						end)
 						task.delay(5, function() if trail then trail:Destroy() end end)
@@ -708,7 +709,7 @@ function PowerUpService.StartLoop()
 								for _, p in ipairs(workspace:GetPartBoundsInRadius(pos, 12)) do
 									local m = p:FindFirstAncestorOfClass("Model")
 									if m and m:FindFirstChild("Humanoid") and m ~= char then
-										fs.ApplyHit(m, 2) -- Explosive impact
+										fs.ApplyHit(m, player) -- Explosive impact (mult is handled inside ApplyHit if passed differently, but here 2nd arg is attacker)
 									end
 								end
 								
@@ -767,7 +768,7 @@ function PowerUpService.StartLoop()
 										targetRoot:ApplyImpulse(dir * 7000)
 										
 										-- Tactics: Apply FREEZE
-										FreezeService.ApplyHit(m)
+										FreezeService.ApplyHit(m, player)
 										
 										-- Damage for enemies
 										if not Players:GetPlayerFromCharacter(m) then

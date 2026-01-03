@@ -1,15 +1,63 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 local CollectionService = game:GetService("CollectionService")
+local Players = game:GetService("Players")
 
 print("--- FROST BROS DEBUG: SERVER STARTING ---")
-
--- Visual indicators (none)
 
 local FreezeService = require(script:WaitForChild("FreezeService"))
 local BasicEnemy = require(script:WaitForChild("BasicEnemy"))
 local MapService = require(script:WaitForChild("MapService"))
 local PowerUpService = require(script:WaitForChild("PowerUpService"))
+
+-- Setup Remotes (EARLY INITIALIZATION)
+local function getOrCreateRemote(name, className)
+	local remote = ReplicatedStorage:FindFirstChild(name)
+	if not remote then
+		remote = Instance.new(className or "RemoteEvent")
+		remote.Name = name
+		remote.Parent = ReplicatedStorage
+	end
+	return remote
+end
+
+local remoteHit = getOrCreateRemote("IceHit")
+local remoteAnim = getOrCreateRemote("PlayAnim")
+local remoteNotice = getOrCreateRemote("PowerUpNotice")
+local remoteFeedback = getOrCreateRemote("GameplayFeedback")
+
+-- Player & Character Management
+local function onCharacterAdded(character)
+	-- Resetear transparencia de todas las partes de inmediato
+	for _, part in ipairs(character:GetDescendants()) do
+		if part:IsA("BasePart") then
+			if part.Name == "HumanoidRootPart" then
+				part.Transparency = 1
+			else
+				part.Transparency = 0
+			end
+		elseif part:IsA("Decal") then
+			part.Transparency = 0
+		end
+	end
+	
+	-- Limpiar cualquier atributo residual de partidas anteriores
+	character:SetAttribute("IsFrozen", false)
+	character:SetAttribute("FreezeHits", 0)
+	character:SetAttribute("PowerUpActive", false)
+end
+
+local function onPlayerAdded(player)
+	player.CharacterAdded:Connect(onCharacterAdded)
+	if player.Character then
+		onCharacterAdded(player.Character)
+	end
+end
+
+Players.PlayerAdded:Connect(onPlayerAdded)
+for _, player in ipairs(Players:GetPlayers()) do
+	onPlayerAdded(player)
+end
 
 -- Build Mario Arena
 MapService.BuildArena()
@@ -17,27 +65,7 @@ MapService.BuildArena()
 -- Start Power-Up Loop
 PowerUpService.StartLoop()
 
--- Setup Remotes
-local remoteHit = ReplicatedStorage:FindFirstChild("IceHit")
-if not remoteHit then
-	remoteHit = Instance.new("RemoteEvent")
-	remoteHit.Name = "IceHit"
-	remoteHit.Parent = ReplicatedStorage
-end
-
-local remoteAnim = ReplicatedStorage:FindFirstChild("PlayAnim")
-if not remoteAnim then
-	remoteAnim = Instance.new("RemoteEvent")
-	remoteAnim.Name = "PlayAnim"
-	remoteAnim.Parent = ReplicatedStorage
-end
-
-local remoteNotice = ReplicatedStorage:FindFirstChild("PowerUpNotice")
-if not remoteNotice then
-	remoteNotice = Instance.new("RemoteEvent")
-	remoteNotice.Name = "PowerUpNotice"
-	remoteNotice.Parent = ReplicatedStorage
-end
+-- Remotes are now setup at the top
 
 remoteHit.OnServerEvent:Connect(function(player, hitPart)
 	if not hitPart then return end
@@ -78,12 +106,12 @@ remoteHit.OnServerEvent:Connect(function(player, hitPart)
 	
 	-- THORN CHECK: If target has Thorns, the ATTACKER gets hit too
 	if targetModel:GetAttribute("HasThorns") then
-		FreezeService.ApplyHit(char)
+		FreezeService.ApplyHit(char, nil) -- Attacker is NPC/Environment thorns
 	end
 
 	local function applyForceHit(model, mult)
 		for i = 1, mult or 1 do
-			FreezeService.ApplyHit(model)
+			FreezeService.ApplyHit(model, player)
 		end
 		
 		-- Special Effects

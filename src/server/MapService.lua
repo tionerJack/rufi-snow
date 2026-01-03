@@ -172,6 +172,17 @@ function MapService.BuildArena()
 	local centerPos = Vector3.new(0, 0, 0)
 	createTower(centerPos, true)
 	
+	-- 5.5 SPAWN LOCATION (Safe place: Top of the central pyramid)
+	local spawnLoc = Instance.new("SpawnLocation")
+	spawnLoc.Name = "ArenaSpawn"
+	spawnLoc.Size = Vector3.new(12, 1, 12)
+	spawnLoc.Position = Vector3.new(0, 25, 0) -- Peak of the central tower
+	spawnLoc.Transparency = 1
+	spawnLoc.CanCollide = false
+	spawnLoc.Anchored = true -- CRITICAL: Make sure it doesn't fall!
+	spawnLoc.Enabled = true
+	spawnLoc.Parent = folder
+	
 	-- INTERMEDIATE PYRAMIDS
 	local mid = size * 0.3
 	local intermediatePositions = {

@@ -15,10 +15,13 @@ function RollLogic.StartRolling(enemy, direction, pusher)
 	local root = enemy:FindFirstChild("HumanoidRootPart")
 	if not root then return end
 	
-	-- Notify pusher to play animation
-	local remoteAnim = game.ReplicatedStorage:FindFirstChild("PlayAnim")
-	if remoteAnim and pusher then
-		remoteAnim:FireClient(pusher, "Push")
+	-- Notify pusher to play animation and camera shake
+	local remoteAnim = ReplicatedStorage:FindFirstChild("PlayAnim")
+	local remoteFeedback = ReplicatedStorage:FindFirstChild("GameplayFeedback")
+	if pusher then
+		print("SERVER: Firing CameraShake for", pusher.Name)
+		if remoteAnim then remoteAnim:FireClient(pusher, "Push") end
+		if remoteFeedback then remoteFeedback:FireClient(pusher, "CameraShake", 1.5) end
 	end
 	
 	-- Physics for rolling
@@ -89,7 +92,27 @@ function RollLogic.StartRolling(enemy, direction, pusher)
 			end
 			
 			local humanoid = otherModel:FindFirstChildOfClass("Humanoid")
-			humanoid:TakeDamage(GameConstants.BALL_DAMAGE)
+			if humanoid.Health > 0 then
+				humanoid:TakeDamage(GameConstants.BALL_DAMAGE)
+				
+				-- MULTI-KILL TRACKING
+				if humanoid.Health <= 0 and pusher then
+					local now = os.clock()
+					local lastKillTime = pusher:GetAttribute("LastKillTime") or 0
+					local killCount = (now - lastKillTime < 4) and (pusher:GetAttribute("KillCombo") or 0) + 1 or 1
+					
+					pusher:SetAttribute("LastKillTime", now)
+					pusher:SetAttribute("KillCombo", killCount)
+					
+					if killCount >= 2 then
+						print("SERVER: Multi-Kill Announcement for", pusher.Name, "x", killCount)
+						local remoteFeedback = ReplicatedStorage:FindFirstChild("GameplayFeedback")
+						if remoteFeedback then
+							remoteFeedback:FireAllClients("MultiKill", pusher.Name, killCount)
+						end
+					end
+				end
+			end
 		end
 	end)
 	

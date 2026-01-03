@@ -50,7 +50,7 @@ function BasicEnemy.new(model)
 					-- THORN RETALIATION: If they have thorns, freeze the enemy!
 					if character:GetAttribute("HasThorns") then
 						print(string.format("THORN RETRIBUTION: %s hit by %s", self.model.Name, player.Name))
-						FreezeService.ApplyHit(self.model)
+						FreezeService.ApplyHit(self.model, player)
 						
 						-- Push back
 						local dir = (self.root.Position - character.HumanoidRootPart.Position).Unit

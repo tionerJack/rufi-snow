@@ -39,7 +39,7 @@ local function createIndicator(char)
 	return billboard
 end
 
-function FreezeService.ApplyHit(char)
+function FreezeService.ApplyHit(char, attacker)
 	local humanoid = char:FindFirstChildOfClass("Humanoid")
 	if not humanoid or humanoid.Health <= 0 then return end
 	
@@ -50,7 +50,7 @@ function FreezeService.ApplyHit(char)
 	end
 	
 	local isPlayer = Players:GetPlayerFromCharacter(char)
-	print(string.format("FREEZE: Hit %s (%s)", char.Name, isPlayer and "Player" or "Enemy"))
+	print(string.format("FREEZE: Hit %s (%s) by %s", char.Name, isPlayer and "Player" or "Enemy", attacker and attacker.Name or "Unknown"))
 	
 	-- RESISTANCE CHECK: Giants and Titans are harder to freeze
 	local hitWeight = 1
@@ -65,7 +65,7 @@ function FreezeService.ApplyHit(char)
 	char:SetAttribute("FreezeHits", currentHits)
 	
 	if currentHits >= GameConstants.FREEZE_HITS_REQUIRED then
-		FreezeService.FreezeCharacter(char)
+		FreezeService.FreezeCharacter(char, attacker)
 	else
 		char:SetAttribute("LastHitTime", os.clock())
 		FreezeService.UpdateVisualState(char, currentHits)
@@ -82,13 +82,32 @@ function FreezeService.ApplyHit(char)
 	end
 end
 
-function FreezeService.FreezeCharacter(char)
+function FreezeService.FreezeCharacter(char, attacker)
 	if char:GetAttribute("IsFrozen") then return end
 	if not RollLogic then RollLogic = require(game.ServerScriptService.Server.RollLogic) end
 	
 	char:SetAttribute("IsFrozen", true)
 	char:SetAttribute("FreezeStartTime", os.clock())
 	
+	-- FEEDBACK: Freeze Effect
+	local remoteFeedback = ReplicatedStorage:FindFirstChild("GameplayFeedback")
+	if remoteFeedback then
+		print("SERVER: Firing Freeze Feedback for", char.Name)
+		local playerFrozen = Players:GetPlayerFromCharacter(char)
+		if playerFrozen then
+			remoteFeedback:FireClient(playerFrozen, "FreezeFlash")
+		end
+		
+		if attacker and attacker:IsA("Player") then
+			remoteFeedback:FireClient(attacker, "CameraShake", 2)
+			remoteFeedback:FireClient(attacker, "FreezeSuccess") -- Special hit marker
+		end
+		
+		remoteFeedback:FireAllClients("FreezeSound", char.PrimaryPart and char.PrimaryPart.Position)
+	else
+		warn("SERVER: GameplayFeedback remote NOT FOUND in FreezeService!")
+	end
+
 	local humanoid = char:FindFirstChildOfClass("Humanoid")
 	if humanoid then
 		humanoid.PlatformStand = true
