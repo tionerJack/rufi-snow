@@ -294,10 +294,11 @@ local function fire(targetOverride)
 		local isShrink = character:GetAttribute("HasShrinkRay")
 		local isExplo = character:GetAttribute("HasExplosiveBalls")
 		
-		projectile.Size = isBeam and Vector3.new(1, 1, 20) 
-			or (isShrink and Vector3.new(0.4, 0.4, 1.2)
-			or (isMega and Vector3.new(1.8, 1.8, 4.0) 
-			or Vector3.new(0.6, 0.6, 2.5)))
+		projectile.Shape = Enum.PartType.Ball
+		projectile.Size = isBeam and Vector3.new(1.2, 1.2, 20) 
+			or (isShrink and Vector3.new(0.8, 0.8, 0.8)
+			or (isMega and Vector3.new(3.5, 3.5, 3.5) 
+			or Vector3.new(1.4, 1.4, 1.4)))
 			
 		projectile.Color = isBeam and Color3.fromRGB(0, 191, 255) 
 			or (isShrink and Color3.fromRGB(0, 255, 0)
@@ -310,6 +311,19 @@ local function fire(targetOverride)
 		projectile.Anchored = true
 		projectile.CFrame = CFrame.lookAt(startPos, startPos + direction)
 		projectile.Parent = workspace
+		
+		-- VISUAL TRAIL
+		local trail = Instance.new("Trail")
+		local a0 = Instance.new("Attachment", projectile)
+		local a1 = Instance.new("Attachment", projectile)
+		a0.Position = Vector3.new(0, projectile.Size.Y/2, 0)
+		a1.Position = Vector3.new(0, -projectile.Size.Y/2, 0)
+		trail.Attachment0 = a0
+		trail.Attachment1 = a1
+		trail.Color = ColorSequence.new(projectile.Color)
+		trail.Transparency = NumberSequence.new(0.4, 1)
+		trail.Lifetime = 0.2
+		trail.Parent = projectile
 		
 		local isBouncing = character:GetAttribute("HasBouncingBalls")
 		
@@ -336,10 +350,33 @@ local function fire(targetOverride)
 					local hitModel = result.Instance:FindFirstAncestorOfClass("Model")
 					local hum = hitModel and hitModel:FindFirstChildOfClass("Humanoid")
 					
-					if hum then
-						local remote = ReplicatedStorage:FindFirstChild("IceHit")
-						if remote then
-							remote:FireServer(result.Instance)
+					if hum or result.Instance.CanCollide then
+						-- IMPACT EFFECT
+						local impact = Instance.new("Part")
+						impact.Size = Vector3.new(1,1,1)
+						impact.Transparency = 1
+						impact.Anchored = true
+						impact.CanCollide = false
+						impact.Position = result.Position
+						impact.Parent = workspace
+						
+						local p = Instance.new("ParticleEmitter")
+						p.Texture = "rbxassetid://6071575923"
+						p.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255))
+						p.Size = NumberSequence.new({NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(1, 0)})
+						p.Speed = NumberRange.new(5, 15)
+						p.Lifetime = NumberRange.new(0.3, 0.6)
+						p.Rate = 100
+						p.Parent = impact
+						p:Emit(20)
+						
+						task.delay(1, function() impact:Destroy() end)
+						
+						if hum then
+							local remote = ReplicatedStorage:FindFirstChild("IceHit")
+							if remote then
+								remote:FireServer(result.Instance)
+							end
 						end
 						projectile:Destroy()
 						break

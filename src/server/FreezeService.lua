@@ -293,6 +293,9 @@ function FreezeService.UnfreezeCharacter(char)
 		end
 	end
 	
+	-- FIRE MANAGEMENT: Turn back ON fire after unfreeze
+	FreezeService.ToggleFire(char, true)
+	
 	local head = char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart")
 	if head then
 		local billboard = head:FindFirstChild("FreezeIndicator")
@@ -306,6 +309,14 @@ end
 
 function FreezeService.UpdateVisualState(char, hits)
 	local ratio = hits / GameConstants.FREEZE_HITS_REQUIRED
+	
+	-- FIRE MANAGEMENT: If any frost hits, extinguish fire
+	if hits > 0 then
+		FreezeService.ToggleFire(char, false)
+	else
+		FreezeService.ToggleFire(char, true)
+	end
+
 	for _, part in ipairs(char:GetDescendants()) do
 		if part:IsA("BasePart") then
 			if not part:GetAttribute("OriginalColor") then
@@ -313,6 +324,14 @@ function FreezeService.UpdateVisualState(char, hits)
 			end
 			local originalColor = part:GetAttribute("OriginalColor")
 			part.Color = originalColor:Lerp(Color3.fromRGB(150, 200, 255), ratio)
+		end
+	end
+end
+
+function FreezeService.ToggleFire(char, enabled)
+	for _, p in ipairs(char:GetDescendants()) do
+		if (p:IsA("Fire") or p:IsA("ParticleEmitter") or p:IsA("PointLight")) and (p.Name == "FireParticles" or p.Name == "FireLight") then
+			p.Enabled = enabled
 		end
 	end
 end

@@ -47,22 +47,28 @@ function BasicEnemy.new(model)
 								    character:GetAttribute("HasThorns")
 
 				if isProtected then
-					-- THORN RETALIATION: If they have thorns, freeze the enemy!
+					-- ... (rest of protection logic)
 					if character:GetAttribute("HasThorns") then
-						print(string.format("THORN RETRIBUTION: %s hit by %s", self.model.Name, player.Name))
 						FreezeService.ApplyHit(self.model, player)
-						
-						-- Push back
 						local dir = (self.root.Position - character.HumanoidRootPart.Position).Unit
 						self.root:ApplyImpulse(dir * 5000)
 					end
-					
-					print(string.format("KILL BLOCKED: %s is PROTECTED!", player.Name))
 					return
 				end
 				
-				print(string.format("KILLING PLAYER: %s touched by %s", player.Name, self.model.Name))
-				humanoid.Health = 0
+				-- DAMAGE PLAYER (Instead of Instakill)
+				local now = os.clock()
+				local lastAtk = self.model:GetAttribute("LastAttackTime") or 0
+				if now - lastAtk > 1.0 then -- 1 second cooldown
+					local dmg = self.model:GetAttribute("Damage") or 20
+					print(string.format("IMP ATTACK: %s dealt %d damage to %s", self.model.Name, dmg, player.Name))
+					humanoid:TakeDamage(dmg)
+					self.model:SetAttribute("LastAttackTime", now)
+					
+					-- Visual Feedback: Small knockback to player
+					local knockbackDir = (character.HumanoidRootPart.Position - self.root.Position).Unit
+					character.HumanoidRootPart:ApplyImpulse(knockbackDir * 2000)
+				end
 			end
 		end
 	end
@@ -111,10 +117,13 @@ local PathfindingService = game:GetService("PathfindingService")
 
 	-- AI Loop: Pathfinding Pursuit
 	task.spawn(function()
+		local level = self.model:GetAttribute("Level") or 1
 		local baseSpeed = self.model:GetAttribute("BaseSpeed") or 14
+		print(string.format("AI START: %s (Lvl %d) Speed: %.1f", self.model.Name, level, baseSpeed))
+		
 		local path = PathfindingService:CreatePath({
-			AgentRadius = 2 * (model:GetAttribute("Scale") or 1),
-			AgentHeight = 5 * (model:GetAttribute("Scale") or 1),
+			AgentRadius = 2 * (self.model:GetAttribute("Scale") or 1),
+			AgentHeight = 5 * (self.model:GetAttribute("Scale") or 1),
 			AgentCanJump = true,
 		})
 		
@@ -125,10 +134,11 @@ local PathfindingService = game:GetService("PathfindingService")
 			if not isFrozen then
 				-- Speed Scaling: Slower as they freeze
 				local speedRatio = 1 - (freezeHits / 3) 
-				self.humanoid.WalkSpeed = math.max(4, baseSpeed * speedRatio)
+				self.humanoid.WalkSpeed = math.max(0, baseSpeed * speedRatio)
 				
-				-- Aggression Scaling: Sensing range grows with hits
-				local detectionRange = 80 + (freezeHits * 40)
+				-- Aggression Scaling: Sensing range grows with level and hits
+				local level = self.model:GetAttribute("Level") or 1
+				local detectionRange = 30 + (level * 30) + (freezeHits * 40) -- Lvl 1 starts at 60 (before was 140)
 				local targetPlayer = getNearestTarget(detectionRange)
 				
 				if targetPlayer then
@@ -160,7 +170,7 @@ local PathfindingService = game:GetService("PathfindingService")
 				self.humanoid.WalkSpeed = 0
 			end
 			
-			task.wait(0.3)
+			task.wait(0.2) -- Faster updates for more aggression
 		end
 	end)
 	

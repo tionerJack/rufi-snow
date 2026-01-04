@@ -251,8 +251,9 @@ local function createTestEnemy(pos, level, killerName)
 	local baseScales = {0.35, 0.4, 0.45, 0.5, 0.55}
 	-- Stats start low (tiny and slow) and grow significantly
 	local scale = baseScales[variant] + (level - 1) * 0.2
-	local baseSpeed = (6 + variant) + (level * 2) -- Lvl 5 will be ~18-20 speed (Faster than player's 16)
-	local maxHealth = 60 + (level * 30)
+	local baseSpeed = (level == 1) and 0 or ((6 + variant) + (level - 2) * 5) -- Lvl 1: 0, Lvl 2: 7-11, Lvl 3: 12-16...
+	local maxHealth = 60 + (level * 40)
+	local attackDamage = 15 + (level * 10) -- Lvl 1: 25 dmg, Lvl 5: 65 dmg
 	
 	local dummy = Instance.new("Model")
 	-- Dynamic Naming with Levels
@@ -266,6 +267,7 @@ local function createTestEnemy(pos, level, killerName)
 	dummy:SetAttribute("Level", level)
 	dummy:SetAttribute("Scale", scale)
 	dummy:SetAttribute("BaseSpeed", baseSpeed)
+	dummy:SetAttribute("Damage", attackDamage)
 	
 	-- Colors (Random shades of red/crimson)
 	local baseColor = Color3.fromRGB(200 + math.random(-20, 20), 40 + math.random(-20, 20), 40)
@@ -280,25 +282,25 @@ local function createTestEnemy(pos, level, killerName)
 	body.Material = Enum.Material.Plastic
 	body.Parent = dummy
 	
-	body.Parent = dummy
-	
-	-- FIRE PARTICLES UNDERNEATH (Using Attachment for better stability)
-	local fireAttach = Instance.new("Attachment")
-	fireAttach.Name = "FireAttachment"
-	fireAttach.Position = Vector3.new(0, -0.6, 0) -- Bottom of the body
-	fireAttach.Parent = body
-	
-	local particles = Instance.new("ParticleEmitter")
-	particles.Texture = "rbxassetid://242200897"
-	particles.Color = ColorSequence.new(Color3.fromRGB(255, 100, 0), Color3.fromRGB(255, 200, 0))
-	particles.Size = NumberSequence.new(0.6 * scale, 1.2 * scale)
-	particles.Lifetime = NumberRange.new(0.3, 0.7)
-	particles.Rate = 35 -- More intense
-	particles.Speed = NumberRange.new(2, 5)
-	particles.SpreadAngle = Vector2.new(15, 15)
-	particles.LightEmission = 0.8 -- Make it glow
-	particles.LightInfluence = 0
-	particles.Parent = fireAttach
+	-- STANDARD FIRE EFFECTS (Like the Fire Power-up)
+	local function addStandardFire(parent, sizeMult)
+		local fire = Instance.new("Fire")
+		fire.Name = "FireParticles"
+		fire.Size = 6 * scale * sizeMult
+		fire.Heat = 12 * scale
+		fire.Parent = parent
+	end
+
+	-- Core Light for Glow
+	local light = Instance.new("PointLight")
+	light.Name = "FireLight"
+	light.Color = Color3.fromRGB(255, 150, 50)
+	light.Range = 15 * scale
+	light.Brightness = 2
+	light.Parent = body
+
+	addStandardFire(body, 1.2)
+	addStandardFire(head, 1.0)
 	
 	-- HEAD
 	local head = Instance.new("Part")

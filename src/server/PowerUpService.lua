@@ -780,15 +780,35 @@ function PowerUpService.StartLoop()
 						end
 					end
 					
-					-- 6. Flight (Directional control using MoveDirection)
+					-- 6. Flight (Directional + Hover logic)
 					if char:GetAttribute("HasFlight") then
 						local bv = root:FindFirstChild("FlightVelocity")
 						local hum = char:FindFirstChildOfClass("Humanoid")
 						if bv and hum then
-							-- Vertical lift + Horizontal control based on player input
-							local horizontalVel = hum.MoveDirection * 40
-							bv.Velocity = horizontalVel + Vector3.new(0, 25 + math.sin(os.clock()*2)*2, 0)
-							bv.MaxForce = Vector3.new(40000, 100000, 40000) -- Allow horizontal force
+							-- 1. Horizontal Control
+							local horizontalVel = hum.MoveDirection * 44 -- Slightly faster in air
+							
+							-- 2. Vertical Hover Control (Raycast to ground)
+							local rayParams = RaycastParams.new()
+							rayParams.FilterDescendantsInstances = {char}
+							rayParams.FilterType = Enum.RaycastFilterType.Exclude
+							
+							local rayResult = workspace:Raycast(root.Position, Vector3.new(0, -50, 0), rayParams)
+							local targetHeight = 12 -- Approx 2x char height
+							local currentHeight = rayResult and (root.Position.Y - rayResult.Position.Y) or 50
+							
+							-- PD-like control for smooth hovering
+							local yError = targetHeight - currentHeight
+							local verticalPush = yError * 5 -- Strength of the hover
+							
+							-- Limit vertical speed to avoid jerky movement
+							verticalPush = math.clamp(verticalPush, -15, 15)
+							
+							-- Add slight bobbing effect
+							local bobbing = math.sin(os.clock() * 3) * 1.5
+							
+							bv.Velocity = horizontalVel + Vector3.new(0, verticalPush + bobbing, 0)
+							bv.MaxForce = Vector3.new(40000, 150000, 40000) 
 						end
 					end
 					
