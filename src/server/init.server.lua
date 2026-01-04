@@ -41,7 +41,21 @@ local function onCharacterAdded(character)
 		end
 	end
 	
-	-- Limpiar cualquier atributo residual de partidas anteriores
+	-- Limpiar cualquier atributo residual de partidas anteriores (Total 39 tipos)
+	local powerUps = {
+		"IsFrozen", "FreezeHits", "PowerUpActive", "IsGiant", "IsTitan", "IsInvincible",
+		"HasTripleShot", "HasMegaBalls", "HasRapidFire", "HasExplosiveBalls", "HasShield",
+		"HasFirePower", "HasBouncingBalls", "HasAntiGravity", "HasLowGravity", "HasFrostTrail",
+		"HasVortexPower", "HasMirage", "IsBerserk", "HasStunBalls", "HasTeleport", "HasIceAura",
+		"HasSloMo", "HasRegen", "HasMeteorRain", "HasWallPower", "IsInvis", "HasShockwave",
+		"HasFreezeBeam", "HasMasterClones", "HasVenom", "HasThorns", "HasMagneticPull",
+		"HasBlizzard", "HasLaser", "HasShrinkRay", "HasFlight", "HasSniper", "HasTimeRecall"
+	}
+	for _, attr in ipairs(powerUps) do
+		character:SetAttribute(attr, nil)
+	end
+	
+	-- Reset defaults
 	character:SetAttribute("IsFrozen", false)
 	character:SetAttribute("FreezeHits", 0)
 	character:SetAttribute("PowerUpActive", false)
@@ -80,8 +94,24 @@ remoteHit.OnServerEvent:Connect(function(player, hitPart)
 		return 
 	end
 
+	-- NEW ABILITIES CHECK (Strictly scoped to current attacker)
+	if not char then return end
+	
+	local attackerStats = {
+		isMega = char:GetAttribute("HasMegaBalls"),
+		isExplosive = char:GetAttribute("HasExplosiveBalls"),
+		isFire = char:GetAttribute("HasFirePower"),
+		isStun = char:GetAttribute("HasStunBalls"),
+		isVortex = char:GetAttribute("HasVortexPower"),
+		isBerserk = char:GetAttribute("IsBerserk"),
+		isSloMo = char:GetAttribute("HasSloMo"),
+		isVenom = char:GetAttribute("HasVenom"),
+		isShrink = char:GetAttribute("HasShrinkRay"),
+		hasWall = char:GetAttribute("HasWallPower")
+	}
+	
 	-- ABILITY: Wall Power (Spawn wall on hit/shot)
-	if char and char:GetAttribute("HasWallPower") then
+	if attackerStats.hasWall then
 		local iceWall = Instance.new("Part")
 		iceWall.Name = "TemporaryIceWall"
 		iceWall.Size = Vector3.new(12, 10, 2)
@@ -92,17 +122,6 @@ remoteHit.OnServerEvent:Connect(function(player, hitPart)
 		iceWall.Parent = workspace
 		task.delay(5, function() if iceWall then iceWall:Destroy() end end)
 	end
-	
-	-- NEW ABILITIES CHECK
-	local isMega = char and char:GetAttribute("HasMegaBalls")
-	local isExplosive = char and char:GetAttribute("HasExplosiveBalls")
-	local isFire = char and char:GetAttribute("HasFirePower")
-	local isStun = char and char:GetAttribute("HasStunBalls")
-	local isVortex = char and char:GetAttribute("HasVortexPower")
-	local isBerserk = char and char:GetAttribute("IsBerserk")
-	local isSloMo = char and char:GetAttribute("HasSloMo")
-	local isVenom = char and char:GetAttribute("HasVenom")
-	local isShrink = char and char:GetAttribute("HasShrinkRay")
 	
 	-- THORN CHECK: If target has Thorns, the ATTACKER gets hit too
 	if targetModel:GetAttribute("HasThorns") then
@@ -117,26 +136,26 @@ remoteHit.OnServerEvent:Connect(function(player, hitPart)
 		-- Special Effects
 		local hum = model:FindFirstChildOfClass("Humanoid")
 		if hum then
-			if isFire then
+			if attackerStats.isFire then
 				hum:TakeDamage(5)
 				local fire = Instance.new("Fire")
 				fire.Size = 5 fire.Parent = model:FindFirstChild("HumanoidRootPart")
 				task.delay(3, function() fire:Destroy() end)
 			end
 			
-			if isStun then
+			if attackerStats.isStun then
 				local oldSpeed = hum.WalkSpeed
 				hum.WalkSpeed = 0
 				task.delay(3, function() if hum then hum.WalkSpeed = oldSpeed end end)
 			end
 			
-			if isSloMo then
+			if attackerStats.isSloMo then
 				local oldSpeed = hum.WalkSpeed
 				hum.WalkSpeed = 4
 				task.delay(4, function() if hum then hum.WalkSpeed = oldSpeed end end)
 			end
 			
-			if isVenom then
+			if attackerStats.isVenom then
 				task.spawn(function()
 					for i = 1, 5 do
 						if hum then hum:TakeDamage(3) end
@@ -145,7 +164,7 @@ remoteHit.OnServerEvent:Connect(function(player, hitPart)
 				end)
 			end
 			
-			if isShrink then
+			if attackerStats.isShrink then
 				print("SHRINK: Reducing " .. model.Name)
 				local factor = 0.7
 				
@@ -178,7 +197,7 @@ remoteHit.OnServerEvent:Connect(function(player, hitPart)
 				task.delay(0.5, function() highlight:Destroy() end)
 			end
 			
-			if isBerserk then
+			if attackerStats.isBerserk then
 				local root = model:FindFirstChild("HumanoidRootPart")
 				if root and char.PrimaryPart then
 					local dir = (root.Position - char.PrimaryPart.Position).Unit
@@ -188,7 +207,7 @@ remoteHit.OnServerEvent:Connect(function(player, hitPart)
 		end
 	end
 
-	if isVortex then
+	if attackerStats.isVortex then
 		local pos = hitPart.Position
 		for _, part in ipairs(workspace:GetPartBoundsInRadius(pos, 25)) do
 			local m = part:FindFirstAncestorOfClass("Model")
@@ -202,7 +221,7 @@ remoteHit.OnServerEvent:Connect(function(player, hitPart)
 		end
 	end
 
-	if isExplosive then
+	if attackerStats.isExplosive then
 		local pos = hitPart.Position
 		print(string.format("EXPLOSION: %s triggered blast at %s", player.Name, tostring(pos)))
 		
@@ -216,7 +235,7 @@ remoteHit.OnServerEvent:Connect(function(player, hitPart)
 		for _, part in ipairs(workspace:GetPartBoundsInRadius(pos, 15)) do
 			local m = part:FindFirstAncestorOfClass("Model")
 			if m and m:FindFirstChildOfClass("Humanoid") and m ~= char then
-				applyForceHit(m, isMega and 3 or 1)
+				applyForceHit(m, attackerStats.isMega and 3 or 1)
 				-- Extra Damage for enemies
 				if not Players:GetPlayerFromCharacter(m) then
 					m.Humanoid:TakeDamage(10)
@@ -224,7 +243,7 @@ remoteHit.OnServerEvent:Connect(function(player, hitPart)
 			end
 		end
 	else
-		applyForceHit(targetModel, isMega and 3 or 1)
+		applyForceHit(targetModel, attackerStats.isMega and 3 or 1)
 	end
 end)
 
