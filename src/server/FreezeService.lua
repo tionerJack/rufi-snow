@@ -52,10 +52,13 @@ function FreezeService.ApplyHit(char, attacker)
 	local isPlayer = Players:GetPlayerFromCharacter(char)
 	print(string.format("FREEZE: Hit %s (%s) by %s", char.Name, isPlayer and "Player" or "Enemy", attacker and attacker.Name or "Unknown"))
 	
-	-- RESISTANCE CHECK: Resistance scales with Level
-	local level = char:GetAttribute("Level") or 1
-	-- Base weight 3 means Lvl 1 freezes in 1 hit (since hits_required = 3)
-	local hitWeight = 3 / (1 + (level - 1) * 0.8)
+	-- RESISTANCE CHECK: Resistance scales with Level for ENEMIES
+	local hitWeight = 1
+	if not isPlayer then
+		local level = char:GetAttribute("Level") or 1
+		-- Level 1 enemies freeze in 1 hit (Weight 3)
+		hitWeight = 3 / (1 + (level - 1) * 0.8)
+	end
 	
 	if char:GetAttribute("IsTitan") then
 		hitWeight *= 0.25
@@ -82,6 +85,41 @@ function FreezeService.ApplyHit(char, attacker)
 		local ratio = (char:GetAttribute("FreezeHits") or 0) / GameConstants.FREEZE_HITS_REQUIRED
 		bar:TweenSize(UDim2.new(ratio, 0, 1, 0), "Out", "Quad", 0.2, true)
 		billboard.Enabled = (char:GetAttribute("FreezeHits") or 0) > 0
+	end
+	
+	-- PASSIVE THAWING TASK (Recovery when not hit)
+	if not char:GetAttribute("ThawTaskActive") then
+		char:SetAttribute("ThawTaskActive", true)
+		task.spawn(function()
+			while char.Parent and (char:GetAttribute("FreezeHits") or 0) > 0 do
+				local lastHit = char:GetAttribute("LastHitTime") or 0
+				local isFrozen = char:GetAttribute("IsFrozen")
+				
+				-- If NOT frozen and NOT hit for 3 seconds, start thawing
+				if not isFrozen and os.clock() - lastHit > 3 then
+					local hits = char:GetAttribute("FreezeHits") or 0
+					local newHits = math.max(0, hits - (GameConstants.UNFREEZE_TICK_RATE * 0.1))
+					char:SetAttribute("FreezeHits", newHits)
+					
+					-- Update visuals as they thaw
+					FreezeService.UpdateVisualState(char, newHits)
+					
+					-- Update billboard
+					if root then
+						local billboard = root:FindFirstChild("FreezeIndicator")
+						if billboard then
+							local bar = billboard:FindFirstChild("Frame"):FindFirstChild("ProgressBar")
+							bar.Size = UDim2.new(newHits / GameConstants.FREEZE_HITS_REQUIRED, 0, 1, 0)
+							if newHits <= 0 then billboard.Enabled = false end
+						end
+					end
+				end
+				
+				if isFrozen then break end -- Handled by Melting Task
+				task.wait(0.1)
+			end
+			char:SetAttribute("ThawTaskActive", false)
+		end)
 	end
 end
 

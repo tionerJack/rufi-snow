@@ -251,7 +251,7 @@ local function createTestEnemy(pos, level, killerName)
 	local baseScales = {0.35, 0.4, 0.45, 0.5, 0.55}
 	-- Stats start low (tiny and slow) and grow significantly
 	local scale = baseScales[variant] + (level - 1) * 0.2
-	local baseSpeed = (2 + variant) + (level * 1.2) -- Lvl 1: 4.2 to 8.2 speed (Very slow)
+	local baseSpeed = (6 + variant) + (level * 2) -- Lvl 5 will be ~18-20 speed (Faster than player's 16)
 	local maxHealth = 60 + (level * 30)
 	
 	local dummy = Instance.new("Model")

@@ -41,14 +41,15 @@ function RollLogic.StartRolling(enemy, direction, pusher)
 	angularVelocity.AngularVelocity = Vector3.new(0, 0, 0) -- Updated in loop
 	
 	-- Visual Snowball Effect
+	local scaleAttr = enemy:GetAttribute("Scale") or 1
 	local ballVisual = Instance.new("Part")
 	ballVisual.Name = "RollingEffect"
 	ballVisual.Shape = Enum.PartType.Ball
-	ballVisual.Size = Vector3.new(4, 4, 4)
+	ballVisual.Size = Vector3.new(4, 4, 4) * scaleAttr
 	ballVisual.Color = Color3.fromRGB(200, 240, 255)
 	ballVisual.Material = Enum.Material.Ice
 	ballVisual.Transparency = 0.4
-	ballVisual.CanCollide = false
+	ballVisual.CanCollide = false -- Still false to avoid physics glitches with the root
 	ballVisual.Parent = enemy
 	
 	local ballWeld = Instance.new("WeldConstraint")
@@ -56,6 +57,13 @@ function RollLogic.StartRolling(enemy, direction, pusher)
 	ballWeld.Part1 = ballVisual
 	ballWeld.Parent = ballVisual
 	ballVisual.Position = root.Position
+	
+	-- Enable collision for easier pushing, but IGNORE own root to avoid physics issues
+	ballVisual.CanCollide = true
+	local noCollide = Instance.new("NoCollisionConstraint")
+	noCollide.Part0 = root
+	noCollide.Part1 = ballVisual
+	noCollide.Parent = ballVisual
 
 	-- Update loop for angular velocity
 	task.spawn(function()

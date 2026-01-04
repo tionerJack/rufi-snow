@@ -489,12 +489,12 @@ function PowerUpService.ApplyBuff(character, powerKey)
 		character:SetAttribute("HasShrinkRay", true)
 	elseif powerKey == "FLY" then
 		character:SetAttribute("HasFlight", true)
-		humanoid.PlatformStand = true
 		local bv = Instance.new("BodyVelocity")
 		bv.Name = "FlightVelocity"
-		bv.Velocity = Vector3.zero
-		bv.MaxForce = Vector3.new(1, 1, 1) * 100000
+		bv.Velocity = Vector3.new(0, 25, 0) -- Vertical lift
+		bv.MaxForce = Vector3.new(0, 100000, 0) -- Only Y axis!
 		bv.Parent = character.PrimaryPart
+		humanoid.JumpPower = 0 -- Disable jumping while flying
 	elseif powerKey == "TIME" then
 		character:SetAttribute("HasTimeRecall", true)
 		character:SetAttribute("RecallPos", character.PrimaryPart.Position)
@@ -780,11 +780,15 @@ function PowerUpService.StartLoop()
 						end
 					end
 					
-					-- 6. Flight
+					-- 6. Flight (Directional control using MoveDirection)
 					if char:GetAttribute("HasFlight") then
 						local bv = root:FindFirstChild("FlightVelocity")
-						if bv then
-							bv.Velocity = root.CFrame.LookVector * 40 + Vector3.new(0, 2, 0)
+						local hum = char:FindFirstChildOfClass("Humanoid")
+						if bv and hum then
+							-- Vertical lift + Horizontal control based on player input
+							local horizontalVel = hum.MoveDirection * 40
+							bv.Velocity = horizontalVel + Vector3.new(0, 25 + math.sin(os.clock()*2)*2, 0)
+							bv.MaxForce = Vector3.new(40000, 100000, 40000) -- Allow horizontal force
 						end
 					end
 					
