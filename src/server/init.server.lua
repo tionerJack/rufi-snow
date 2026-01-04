@@ -6,7 +6,7 @@ local Players = game:GetService("Players")
 print("--- FROST BROS DEBUG: SERVER STARTING ---")
 
 local FreezeService = require(script:WaitForChild("FreezeService"))
-local BasicEnemy = require(script:WaitForChild("BasicEnemy"))
+local BasicEnemy = nil -- Removed monster logic
 local MapService = require(script:WaitForChild("MapService"))
 local PowerUpService = require(script:WaitForChild("PowerUpService"))
 
@@ -112,15 +112,19 @@ remoteHit.OnServerEvent:Connect(function(player, hitPart)
 	
 	-- ABILITY: Wall Power (Spawn wall on hit/shot)
 	if attackerStats.hasWall then
-		local iceWall = Instance.new("Part")
-		iceWall.Name = "TemporaryIceWall"
-		iceWall.Size = Vector3.new(12, 10, 2)
-		iceWall.Position = hitPart.Position + Vector3.new(0, 5, 0)
-		iceWall.Color = Color3.fromRGB(200, 255, 255)
-		iceWall.Material = Enum.Material.Ice
-		iceWall.Anchored = true
-		iceWall.Parent = workspace
-		task.delay(5, function() if iceWall then iceWall:Destroy() end end)
+		local lastWall = char:GetAttribute("LastWallTime") or 0
+		if os.clock() - lastWall > 2.0 then
+			char:SetAttribute("LastWallTime", os.clock())
+			local iceWall = Instance.new("Part")
+			iceWall.Name = "TemporaryIceWall"
+			iceWall.Size = Vector3.new(12, 10, 2)
+			iceWall.Position = hitPart.Position + Vector3.new(0, 5, 0)
+			iceWall.Color = Color3.fromRGB(200, 255, 255)
+			iceWall.Material = Enum.Material.Ice
+			iceWall.Anchored = true
+			iceWall.Parent = workspace
+			task.delay(5, function() if iceWall then iceWall:Destroy() end end)
+		end
 	end
 	
 	-- THORN CHECK: If target has Thorns, the ATTACKER gets hit too
@@ -136,12 +140,13 @@ remoteHit.OnServerEvent:Connect(function(player, hitPart)
 		-- Special Effects
 		local hum = model:FindFirstChildOfClass("Humanoid")
 		if hum then
-			if attackerStats.isFire then
-				hum:TakeDamage(5)
-				local fire = Instance.new("Fire")
-				fire.Size = 5 fire.Parent = model:FindFirstChild("HumanoidRootPart")
-				task.delay(3, function() fire:Destroy() end)
-			end
+				if attackerStats.isFire then
+					hum:TakeDamage(10) -- Increased damage
+					local fire = Instance.new("Fire")
+					fire.Size = 8 fire.Parent = model:FindFirstChild("HumanoidRootPart")
+					task.delay(4, function() fire:Destroy() end)
+					-- Special PVP: If they are near frozen, fire makes it harder to thaw? Or just more damage.
+				end
 			
 			if attackerStats.isStun then
 				local oldSpeed = hum.WalkSpeed
@@ -200,8 +205,12 @@ remoteHit.OnServerEvent:Connect(function(player, hitPart)
 			if attackerStats.isBerserk then
 				local root = model:FindFirstChild("HumanoidRootPart")
 				if root and char.PrimaryPart then
-					local dir = (root.Position - char.PrimaryPart.Position).Unit
-					root:ApplyImpulse(dir * 5000)
+					local dir = (root.Position - char.PrimaryPart.Position).Unit + Vector3.new(0, 0.4, 0)
+					root:ApplyImpulse(dir * 18000) -- Massive Berserk shove
+					
+					-- Visual Flash
+					local remoteFeedback = ReplicatedStorage:FindFirstChild("GameplayFeedback")
+					if remoteFeedback then remoteFeedback:FireClient(player, "CameraShake", 3) end
 				end
 			end
 		end
@@ -236,234 +245,35 @@ remoteHit.OnServerEvent:Connect(function(player, hitPart)
 			local m = part:FindFirstAncestorOfClass("Model")
 			if m and m:FindFirstChildOfClass("Humanoid") and m ~= char then
 				applyForceHit(m, attackerStats.isMega and 3 or 1)
-				-- Extra Damage for enemies
-				if not Players:GetPlayerFromCharacter(m) then
-					m.Humanoid:TakeDamage(10)
-				end
 			end
 		end
 	else
 		applyForceHit(targetModel, attackerStats.isMega and 3 or 1)
 	end
-end)
-
-local function setupEnemy(enemy)
-	if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") then
-		BasicEnemy.new(enemy)
-	end
-end
-
-CollectionService:GetInstanceAddedSignal("Enemy"):Connect(setupEnemy)
-
-local function getRandomSpawnPos()
-	-- Arena is 120x120 (-60 to 60). Spawn within safely.
-	return Vector3.new(math.random(-50, 50), 20, math.random(-50, 50))
-end
-
-local enemyCounter = 0
-local function createTestEnemy(pos, level, killerName)
-	enemyCounter += 1
-	level = level or 1
 	
-	-- Level-based Progression
-	local variant = math.random(1, 5)
-	local baseScales = {0.35, 0.4, 0.45, 0.5, 0.55}
-	-- Stats start low (tiny and slow) and grow significantly
-	local scale = baseScales[variant] + (level - 1) * 0.2
-	local baseSpeed = (level == 1) and 0 or ((6 + variant) + (level - 2) * 5) -- Lvl 1: 0, Lvl 2: 7-11, Lvl 3: 12-16...
-	local maxHealth = 60 + (level * 40)
-	local attackDamage = 15 + (level * 10) -- Lvl 1: 25 dmg, Lvl 5: 65 dmg
-	
-	local dummy = Instance.new("Model")
-	-- Dynamic Naming with Levels
-	if killerName then
-		dummy.Name = string.format("%s Imp [Lvl %d]", killerName, level)
-	else
-		dummy.Name = string.format("Fire Imp [Lvl %d]", level)
-	end
-	
-	dummy:SetAttribute("EnemyID", enemyCounter)
-	dummy:SetAttribute("Level", level)
-	dummy:SetAttribute("Scale", scale)
-	dummy:SetAttribute("BaseSpeed", baseSpeed)
-	dummy:SetAttribute("Damage", attackDamage)
-	
-	-- Colors (Random shades of red/crimson)
-	local baseColor = Color3.fromRGB(200 + math.random(-20, 20), 40 + math.random(-20, 20), 40)
-	local accentColor = Color3.fromRGB(150, 30, 30)
-	
-	-- BODY
-	local body = Instance.new("Part")
-	body.Name = "HumanoidRootPart"
-	body.Size = Vector3.new(1.2, 1.2, 0.8) * scale
-	body.Position = pos + Vector3.new(0, (1.2 * scale)/2, 0)
-	body.Color = baseColor
-	body.Material = Enum.Material.Plastic
-	body.Parent = dummy
-	
-	-- STANDARD FIRE EFFECTS (Like the Fire Power-up)
-	local function addStandardFire(parent, sizeMult)
-		local fire = Instance.new("Fire")
-		fire.Name = "FireParticles"
-		fire.Size = 6 * scale * sizeMult
-		fire.Heat = 12 * scale
-		fire.Parent = parent
-	end
-
-	-- Core Light for Glow
-	local light = Instance.new("PointLight")
-	light.Name = "FireLight"
-	light.Color = Color3.fromRGB(255, 150, 50)
-	light.Range = 15 * scale
-	light.Brightness = 2
-	light.Parent = body
-
-	addStandardFire(body, 1.2)
-	addStandardFire(head, 1.0)
-	
-	-- HEAD
-	local head = Instance.new("Part")
-	head.Name = "Head"
-	head.Size = Vector3.new(1.5, 1.5, 1.5) * scale
-	head.Position = body.Position + Vector3.new(0, 1.35 * scale, 0)
-	head.Color = baseColor
-	head.Material = Enum.Material.Plastic
-	head.Parent = dummy
-	
-	local headWeld = Instance.new("WeldConstraint")
-	headWeld.Part0 = body
-	headWeld.Part1 = head
-	headWeld.Parent = head
-	
-	-- HORNS (Devil style)
-	local function createHorn(side)
-		local horn = Instance.new("Part")
-		horn.Name = "Horn"
-		horn.Size = Vector3.new(0.4, 0.6, 0.4) * scale
-		horn.Color = Color3.fromRGB(50, 20, 20)
-		horn.Material = Enum.Material.Plastic
-		horn.Parent = dummy
+	-- GIANT IMPACT: AOE Shockwave if the attacker is big
+	if char:GetAttribute("IsGiant") or char:GetAttribute("IsTitan") then
+		local impactPos = hitPart.Position
+		local power = char:GetAttribute("IsTitan") and 12000 or 6000
 		
-		local weld = Instance.new("WeldConstraint")
-		weld.Part0 = head
-		weld.Part1 = horn
-		weld.Parent = horn
-		-- Vary horn tilt based on variant
-		local tilt = side * (10 + variant * 10)
-		horn.CFrame = head.CFrame * CFrame.new(side * 0.5 * scale, 0.8 * scale, 0) * CFrame.Angles(math.rad(tilt), 0, 0)
-	end
-	createHorn(1)
-	createHorn(-1)
-	
-	-- TAIL (Only for larger variants 4 and 5)
-	if variant >= 4 then
-		local tail = Instance.new("Part")
-		tail.Name = "Tail"
-		tail.Size = Vector3.new(0.3, 0.3, 1.2) * scale
-		tail.Color = accentColor
-		tail.Parent = dummy
-		
-		local weld = Instance.new("WeldConstraint")
-		weld.Part0 = body
-		weld.Part1 = tail
-		weld.Parent = tail
-		tail.CFrame = body.CFrame * CFrame.new(0, -0.2 * scale, 0.6 * scale) * CFrame.Angles(math.rad(-30), 0, 0)
-		
-		-- Tail Tip (Triangle/Spike)
-		local tip = Instance.new("Part")
-		tip.Size = Vector3.new(0.5, 0.5, 0.2) * scale
-		tip.Color = Color3.fromRGB(30, 10, 10)
-		tip.Shape = Enum.PartType.Block
-		tip.Parent = dummy
-		tip.CFrame = tail.CFrame * CFrame.new(0, 0, 0.7 * scale)
-		
-		local tipWeld = Instance.new("WeldConstraint")
-		tipWeld.Part0 = tail
-		tipWeld.Part1 = tip
-		tipWeld.Parent = tip
-	end
-	
-	-- EYES
-	local function createEye(offset)
-		local eye = Instance.new("Part")
-		eye.Size = Vector3.new(0.35, 0.35, 0.1) * scale
-		eye.Color = Color3.new(0, 0, 0)
-		eye.Material = Enum.Material.Neon
-		eye.CanCollide = false
-		eye.Parent = dummy
-		
-		local weld = Instance.new("WeldConstraint")
-		weld.Part0 = head
-		weld.Part1 = eye
-		weld.Parent = eye
-		eye.CFrame = head.CFrame * CFrame.new(offset.X * scale, 0.1 * scale, -0.76 * scale)
-		
-		-- Eye Reflection
-		local glint = Instance.new("Part")
-		glint.Size = Vector3.new(0.12, 0.12, 0.05) * scale
-		glint.Color = Color3.new(1, 1, 1)
-		glint.Material = Enum.Material.Neon
-		glint.CanCollide = false
-		glint.Parent = dummy
-		
-		local glintWeld = Instance.new("WeldConstraint")
-		glintWeld.Part0 = eye
-		glintWeld.Part1 = glint
-		glintWeld.Parent = glint
-		glint.CFrame = eye.CFrame * CFrame.new(0.08 * scale, 0.08 * scale, -0.06 * scale)
-	end
-	createEye(Vector2.new(0.3, 0))
-	createEye(Vector2.new(-0.3, 0))
-	
-	-- LEGS
-	local function createLeg(side)
-		local leg = Instance.new("Part")
-		leg.Size = Vector3.new(0.5, 0.8, 0.5) * scale
-		leg.Position = body.Position + Vector3.new(side * 0.35 * scale, -1.0 * scale, 0)
-		leg.Color = accentColor
-		leg.Parent = dummy
-		
-		local weld = Instance.new("WeldConstraint")
-		weld.Part0 = body
-		weld.Part1 = leg
-		weld.Parent = leg
-	end
-	createLeg(1)
-	createLeg(-1)
-	
-	local hum = Instance.new("Humanoid")
-	hum.MaxHealth = maxHealth
-	hum.Health = maxHealth
-	hum.WalkSpeed = baseSpeed
-	hum.HipHeight = 1.4 * scale
-	hum.Parent = dummy
-	
-	-- Respawn logic with increased difficulty and name inheritance
-	hum.Died:Connect(function()
-		local killer = dummy:GetAttribute("KillerName")
-		
-		-- Bonus: If no potion active, spawn one immediately!
-		if not workspace:FindFirstChild("PotionCrystal") then
-			print("ENEMY DIED: Spawning reward potion survivor!")
-			PowerUpService.SpawnPotion(true)
+		for _, part in ipairs(workspace:GetPartBoundsInRadius(impactPos, 15)) do
+			local m = part:FindFirstAncestorOfClass("Model")
+			if m and m ~= char and m:FindFirstChild("Humanoid") then
+				local tr = m:FindFirstChild("HumanoidRootPart")
+				if tr then
+					local dir = (tr.Position - impactPos).Unit + Vector3.new(0, 0.5, 0)
+					tr:ApplyImpulse(dir * power)
+				end
+			end
 		end
-		
-		task.wait(3)
-		-- Spawn a stronger version named after the killer!
-		createTestEnemy(getRandomSpawnPos(), level + 1, killer)
-		dummy:Destroy()
-	end)
-	
-	dummy.PrimaryPart = body
-	dummy.Parent = workspace
-	CollectionService:AddTag(dummy, "Enemy")
-	print(string.format("Spawned Red Imp Variant %d (Scale %.1f) at %s", variant, scale, tostring(pos)))
-end
-
-task.delay(1, function()
-	for i = 1, 10 do
-		createTestEnemy(getRandomSpawnPos(), 1)
+		-- Visual Feedback
+		local remoteFeedback = ReplicatedStorage:FindFirstChild("GameplayFeedback")
+		if remoteFeedback then remoteFeedback:FireAllClients("CameraShake", 2, impactPos) end
 	end
 end)
+
+-- CollectionService Enemy setup removed
+
+-- Initial enemy spawning removed
 
 print("--- FROST BROS SERVER: READY ---")

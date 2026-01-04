@@ -50,16 +50,9 @@ function FreezeService.ApplyHit(char, attacker)
 	end
 	
 	local isPlayer = Players:GetPlayerFromCharacter(char)
-	print(string.format("FREEZE: Hit %s (%s) by %s", char.Name, isPlayer and "Player" or "Enemy", attacker and attacker.Name or "Unknown"))
+	print(string.format("FREEZE: Hit %s (%s) by %s", char.Name, isPlayer and "Player" or "Entity", attacker and attacker.Name or "Unknown"))
 	
-	-- RESISTANCE CHECK: Resistance scales with Level for ENEMIES
 	local hitWeight = 1
-	if not isPlayer then
-		local level = char:GetAttribute("Level") or 1
-		-- Level 1 enemies freeze in 1 hit (Weight 3)
-		hitWeight = 3 / (1 + (level - 1) * 0.8)
-	end
-	
 	if char:GetAttribute("IsTitan") then
 		hitWeight *= 0.25
 	elseif char:GetAttribute("IsGiant") then

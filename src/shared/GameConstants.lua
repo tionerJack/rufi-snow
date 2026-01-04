@@ -8,7 +8,7 @@ local GameConstants = {
 	PROJECTILE_SPEED = 100,
 	PROJECTILE_RANGE = 30, -- Even shorter for true close combat
 	ARENA_SIZE = 250,
-	BALL_DAMAGE = 100, -- Instakill basic enemies
+	BALL_DAMAGE = 100, -- Instakill when hit by a rolling snowball
 	PUSHER_IMMUNITY_DURATION = 1.0,
 	
 	-- Power-Up Constants

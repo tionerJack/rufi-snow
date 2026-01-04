@@ -210,18 +210,17 @@ function PowerUpService.ApplyBuff(character, powerKey)
 		character:SetAttribute("HasMirage", true)
 		local CollectionService = game:GetService("CollectionService")
 		for i = 1, 3 do
+			-- Create a slightly more realistic 'Ice Ghost'
 			local decoyModel = Instance.new("Model")
 			decoyModel.Name = "MirageDecoy"
 			
 			local torso = Instance.new("Part")
-			torso.Name = "Torso"
-			torso.Size = Vector3.new(2, 3, 1)
+			torso.Name = "HumanoidRootPart"
+			torso.Size = Vector3.new(2, 2, 1)
 			torso.Color = data.Color
 			torso.Material = Enum.Material.Neon
-			torso.Transparency = 0.6
-			torso.Anchored = true
-			torso.CanCollide = false
-			torso.CFrame = character.PrimaryPart.CFrame * CFrame.new(math.random(-20, 20), 0, math.random(-20, 20))
+			torso.Transparency = 0.5
+			torso.CFrame = character.PrimaryPart.CFrame * CFrame.new(math.random(-15, 15), 0, math.random(-15, 15))
 			torso.Parent = decoyModel
 			
 			local head = Instance.new("Part")
@@ -230,34 +229,26 @@ function PowerUpService.ApplyBuff(character, powerKey)
 			head.Size = Vector3.new(1.2, 1.2, 1.2)
 			head.Color = data.Color
 			head.Material = Enum.Material.Neon
-			head.Transparency = 0.5
-			head.Anchored = true
-			head.CanCollide = false
-			head.CFrame = torso.CFrame * CFrame.new(0, 2.2, 0)
+			head.Transparency = 0.4
 			head.Parent = decoyModel
+			local hw = Instance.new("WeldConstraint") hw.Part0 = torso hw.Part1 = head hw.Parent = head
+			head.CFrame = torso.CFrame * CFrame.new(0, 1.5, 0)
+
+			-- Add a humanoid so it looks like a player in some HUDs/Targeting
+			local hum = Instance.new("Humanoid")
+			hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+			hum.Parent = decoyModel
 			
 			decoyModel.Parent = workspace
 			CollectionService:AddTag(torso, "Decoy")
 			
-			-- Aggro Particle (Radial Pulse)
-			local p = Instance.new("ParticleEmitter")
-			p.Color = ColorSequence.new(data.Color)
-			p.Size = NumberSequence.new(0.5, 2)
-			p.Transparency = NumberSequence.new(0, 1)
-			p.Lifetime = NumberRange.new(2)
-			p.Rate = 15
-			p.Speed = NumberRange.new(5, 10)
-			p.Texture = "rbxassetid://6071575923"
-			p.Parent = torso
-			
-			-- Holographic Pulse Animation
+			-- MOVING DECOY LOGIC: They run away!
 			task.spawn(function()
-				while decoyModel.Parent do
-					local t = os.clock()
-					local pulse = 0.5 + math.sin(t * 10) * 0.2
-					torso.Transparency = pulse
-					head.Transparency = pulse
-					task.wait(0.05)
+				local start = os.clock()
+				while decoyModel.Parent and os.clock() - start < GameConstants.POWERUP_DURATION do
+					local moveDir = Vector3.new(math.random(-1, 1), 0, math.random(-1, 1)).Unit * 25
+					torso.AssemblyLinearVelocity = moveDir
+					task.wait(math.random(1, 3))
 				end
 			end)
 			
@@ -276,39 +267,30 @@ function PowerUpService.ApplyBuff(character, powerKey)
 	
 	-- 20 NEW TYPES
 	elseif powerKey == "TELEPORT" then
-		local CollectionService = game:GetService("CollectionService")
-		local peaks = CollectionService:GetTagged("PyramidPeak")
-		if #peaks > 0 then
-			-- 1. Teleport the Player
-			local target = peaks[math.random(1, #peaks)]
-			character:SetPrimaryPartCFrame(target.CFrame * CFrame.new(0, 10, 0))
-			
-			-- Visual Flash
-			local function createFlash(pos)
-				local flash = Instance.new("Part")
-				flash.Size = Vector3.new(6, 6, 6)
-				flash.Shape = Enum.PartType.Ball
-				flash.Color = Color3.fromRGB(255, 255, 255)
-				flash.Material = Enum.Material.Neon
-				flash.Anchored = true flash.CanCollide = false
-				flash.Position = pos flash.Parent = workspace
-				TweenService:Create(flash, TweenInfo.new(0.4), {Transparency = 1, Size = Vector3.new(0,0,0)}):Play()
-				task.delay(0.4, function() flash:Destroy() end)
+		local otherPlayers = {}
+		for _, p in ipairs(Players:GetPlayers()) do
+			if p ~= player and p.Character and p.Character.PrimaryPart then
+				table.insert(otherPlayers, p.Character)
 			end
-			createFlash(character.PrimaryPart.Position)
-
-			-- 2. FROST DISPATCH: Teleport all frozen entities
-			print("TELEPORT: Dispatching frozen souls...")
-			for _, m in ipairs(workspace:GetDescendants()) do
-				if m:IsA("Model") and m:GetAttribute("IsFrozen") then
-					local randPeak = peaks[math.random(1, #peaks)]
-					local root = m:FindFirstChild("HumanoidRootPart")
-					if root then
-						createFlash(root.Position) -- Flash at old pos
-						m:SetPrimaryPartCFrame(randPeak.CFrame * CFrame.new(0, 10, 0))
-						createFlash(root.Position) -- Flash at new pos
-					end
-				end
+		end
+		
+		if #otherPlayers > 0 then
+			-- PVP SWAP: Swap positions with a random opponent
+			local targetChar = otherPlayers[math.random(1, #otherPlayers)]
+			local myPos = character.PrimaryPart.CFrame
+			local targetPos = targetChar.PrimaryPart.CFrame
+			
+			character:SetPrimaryPartCFrame(targetPos)
+			targetChar:SetPrimaryPartCFrame(myPos)
+			
+			print(string.format("TELEPORT: Swapped %s with %s!", playerName, targetChar.Name))
+		else
+			-- Fallback to random peak if solo
+			local CollectionService = game:GetService("CollectionService")
+			local peaks = CollectionService:GetTagged("PyramidPeak")
+			if #peaks > 0 then
+				local target = peaks[math.random(1, #peaks)]
+				character:SetPrimaryPartCFrame(target.CFrame * CFrame.new(0, 10, 0))
 			end
 		end
 	elseif powerKey == "AURA" then
@@ -364,7 +346,11 @@ function PowerUpService.ApplyBuff(character, powerKey)
 	elseif powerKey == "INVIS" then
 		character:SetAttribute("IsInvis", true)
 		for _, v in ipairs(character:GetDescendants()) do
-			if v:IsA("BasePart") then v.Transparency = 1 end
+			if v:IsA("BasePart") then v.Transparency = 1 
+			elseif v:IsA("Decal") then v.Transparency = 1 end
+		end
+		if humanoid then
+			humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
 		end
 	elseif powerKey == "SHOCK" then
 		character:SetAttribute("HasShockwave", true)
@@ -612,6 +598,7 @@ function PowerUpService.RemoveBuff(character)
 			humanoid.HeadScale.Value = 1
 			task.defer(function() humanoid:BuildRigFromAttachments() end)
 		end
+		humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.Viewer
 	end
 	
 	-- Visual Cleanups
@@ -694,7 +681,16 @@ function PowerUpService.StartLoop()
 						task.delay(5, function() if trail then trail:Destroy() end end)
 					end
 					
-					-- 2. Ice Aura (Auto-Freeze) (Already functional)
+					-- 2. Ice Aura (Auto-Freeze)
+					if char:GetAttribute("HasIceAura") then
+						for _, p in ipairs(workspace:GetPartBoundsInRadius(root.Position, 18)) do
+							local m = p:FindFirstAncestorOfClass("Model")
+							if m and m:FindFirstChild("Humanoid") and m ~= char then
+								local fs = require(script.Parent.FreezeService)
+								fs.ApplyHit(m, player)
+							end
+						end
+					end
 					
 					-- 3. Meteor Rain (Functional: AOE Explosion)
 					if char:GetAttribute("HasMeteorRain") then
@@ -772,11 +768,6 @@ function PowerUpService.StartLoop()
 										
 										-- Tactics: Apply FREEZE
 										FreezeService.ApplyHit(m, player)
-										
-										-- Damage for enemies
-										if not Players:GetPlayerFromCharacter(m) then
-											thum:TakeDamage(5)
-										end
 									end
 								end
 							end
@@ -815,11 +806,16 @@ function PowerUpService.StartLoop()
 						end
 					end
 					
-					-- 7. Regen (Health)
+					-- 7. Regen (Health & Freeze Recovery)
 					if char:GetAttribute("HasRegen") then
-						local hits = char:GetAttribute("HitsTaken") or 0
-						if hits > 0 then
-							char:SetAttribute("HitsTaken", hits - 0.2) -- Slow heal
+						-- Heal damage
+						if hum.Health < hum.MaxHealth then
+							hum.Health = math.min(hum.MaxHealth, hum.Health + 1)
+						end
+						-- Rapidly reduce freeze hits
+						local fhits = char:GetAttribute("FreezeHits") or 0
+						if fhits > 0 then
+							char:SetAttribute("FreezeHits", math.max(0, fhits - 0.5))
 						end
 					end
 					

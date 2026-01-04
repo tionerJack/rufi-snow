@@ -103,8 +103,30 @@ function RollLogic.StartRolling(enemy, direction, pusher)
 			end
 			
 			local humanoid = otherModel:FindFirstChildOfClass("Humanoid")
+			local targetRoot = otherModel:FindFirstChild("HumanoidRootPart")
+			
 			if humanoid.Health > 0 then
+				-- Apply Damage
 				humanoid:TakeDamage(GameConstants.BALL_DAMAGE)
+				
+				-- PVP IMPACT: Send them flying if they survive or as a corpse!
+				if targetRoot then
+					local pushDir = (targetRoot.Position - root.Position).Unit + Vector3.new(0, 0.5, 0)
+					targetRoot:ApplyImpulse(pushDir * 15000) -- Massive punch
+				end
+
+				-- Visual Impact
+				local spark = Instance.new("Part")
+				spark.Size = Vector3.new(4, 4, 4)
+				spark.Transparency = 1 spark.Anchored = true spark.CanCollide = false
+				spark.Position = targetRoot.Position spark.Parent = workspace
+				local p = Instance.new("ParticleEmitter")
+				p.Texture = "rbxassetid://6071575923"
+				p.Size = NumberSequence.new(2, 0)
+				p.Speed = NumberRange.new(20, 40)
+				p.Parent = spark
+				p:Emit(30)
+				task.delay(1, function() spark:Destroy() end)
 				
 				-- MULTI-KILL TRACKING
 				if humanoid.Health <= 0 and pusher then
