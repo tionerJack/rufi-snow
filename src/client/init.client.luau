@@ -333,8 +333,12 @@ local function fire(targetOverride)
 			local bounces = 0
 			local maxBounces = isBouncing and 3 or 0
 			local currentDir = direction
+			local maxRange = GameConstants.PROJECTILE_RANGE
+			if character:GetAttribute("HasSniper") then
+				maxRange *= 3 -- Triple range for Sniper ability
+			end
 			
-			while distance < GameConstants.PROJECTILE_RANGE * 2 do
+			while distance < maxRange do
 				local step = speed * task.wait()
 				distance += step
 				projectile.CFrame = projectile.CFrame * CFrame.new(0, 0, -step)

@@ -6,7 +6,7 @@ local GameConstants = {
 	ROLL_DURATION = 4,
 	FIRE_RATE = 0.3,
 	PROJECTILE_SPEED = 100,
-	PROJECTILE_RANGE = 100, -- Increased for bigger map
+	PROJECTILE_RANGE = 30, -- Even shorter for true close combat
 	ARENA_SIZE = 250,
 	BALL_DAMAGE = 100, -- Instakill basic enemies
 	PUSHER_IMMUNITY_DURATION = 1.0,
@@ -59,6 +59,7 @@ local GameConstants = {
 		SHRINK = {Name = "Rayo Reductor", Color = Color3.fromRGB(106, 90, 205)},
 		FLY = {Name = "Vuelo Glacial", Color = Color3.fromRGB(135, 206, 250)},
 		TIME = {Name = "Rebobinar", Color = Color3.fromRGB(255, 140, 0)},
+		SNIPER = {Name = "Súper Alcance", Color = Color3.fromRGB(100, 149, 237)},
 	},
 
 	POWERUP_CATEGORIES = {
@@ -66,7 +67,7 @@ local GameConstants = {
 			Name = "PODER DE ATAQUE",
 			Emoji = "⚡",
 			Color = Color3.fromRGB(255, 50, 50),
-			Abilities = {"TRIPLE", "MEGA", "RAPID", "EXPLOSIVE", "FIRE", "BOUNCE", "BERSERK", "STUN", "BEAM", "LASER", "SHRINK", "VENOM"}
+			Abilities = {"TRIPLE", "MEGA", "RAPID", "EXPLOSIVE", "FIRE", "BOUNCE", "BERSERK", "STUN", "BEAM", "LASER", "SHRINK", "VENOM", "SNIPER"}
 		},
 		DEFENSE = {
 			Name = "PODER DEFENSIVO",

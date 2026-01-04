@@ -492,9 +492,11 @@ function PowerUpService.ApplyBuff(character, powerKey)
 		local bv = Instance.new("BodyVelocity")
 		bv.Name = "FlightVelocity"
 		bv.Velocity = Vector3.new(0, 25, 0) -- Vertical lift
-		bv.MaxForce = Vector3.new(0, 100000, 0) -- Only Y axis!
+		bv.MaxForce = Vector3.new(0, 150000, 0) -- Adjusted for hover system
 		bv.Parent = character.PrimaryPart
 		humanoid.JumpPower = 0 -- Disable jumping while flying
+	elseif powerKey == "SNIPER" then
+		character:SetAttribute("HasSniper", true)
 	elseif powerKey == "TIME" then
 		character:SetAttribute("HasTimeRecall", true)
 		character:SetAttribute("RecallPos", character.PrimaryPart.Position)
@@ -590,6 +592,7 @@ function PowerUpService.RemoveBuff(character)
 	character:SetAttribute("HasBlizzard", nil)
 	character:SetAttribute("HasLaser", nil)
 	character:SetAttribute("HasShrinkRay", nil)
+	character:SetAttribute("HasSniper", nil)
 	character:SetAttribute("HasFlight", nil)
 	character:SetAttribute("HasTimeRecall", nil)
 	character:SetAttribute("RecallPos", nil)
