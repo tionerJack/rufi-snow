@@ -1,6 +1,6 @@
 local MapService = {}
 
-function MapService.BuildArena()
+function MapService.BuildArena(mapID)
 	local folder = workspace:FindFirstChild("Arena") or Instance.new("Folder")
 	folder.Name = "Arena"
 	folder.Parent = workspace
@@ -14,8 +14,32 @@ function MapService.BuildArena()
 	local size = GameConstants.ARENA_SIZE
 	local wallHeight = 20
 	local wallThickness = 4
+	
+	-- Theme Settings
 	local ICE_COLOR = Color3.fromRGB(200, 240, 255)
 	local SNOW_COLOR = Color3.fromRGB(255, 255, 255)
+	local FLOOR_MAT = Enum.Material.Snow
+	local WALL_MAT = Enum.Material.Ice
+	local NEON_COLOR = Color3.fromRGB(0, 200, 255)
+
+	if mapID == "CRYSTAL" then
+		ICE_COLOR = Color3.fromRGB(255, 100, 255)
+		SNOW_COLOR = Color3.fromRGB(200, 0, 200)
+		FLOOR_MAT = Enum.Material.Glass
+		NEON_COLOR = Color3.fromRGB(255, 255, 0)
+	elseif mapID == "FIRE_ARENA" then
+		ICE_COLOR = Color3.fromRGB(139, 0, 0)
+		SNOW_COLOR = Color3.fromRGB(50, 0, 0)
+		FLOOR_MAT = Enum.Material.Basalt
+		WALL_MAT = Enum.Material.CrackedLava
+		NEON_COLOR = Color3.fromRGB(255, 69, 0)
+	elseif mapID == "SPACE" then
+		ICE_COLOR = Color3.fromRGB(40, 40, 60)
+		SNOW_COLOR = Color3.fromRGB(15, 15, 25)
+		FLOOR_MAT = Enum.Material.Concrete
+		WALL_MAT = Enum.Material.Neon
+		NEON_COLOR = Color3.fromRGB(100, 100, 255)
+	end
 	
 	-- FIX FLICKERING: Find and remove default Baseplate
 	local baseplate = workspace:FindFirstChild("Baseplate")
@@ -27,7 +51,7 @@ function MapService.BuildArena()
 	floor.Size = Vector3.new(size + 60, 2, size + 60)
 	floor.Position = Vector3.new(0, -0.95, 0) -- Top surface is now at 0.05
 	floor.Color = SNOW_COLOR
-	floor.Material = Enum.Material.Snow
+	floor.Material = FLOOR_MAT
 	floor.Anchored = true
 	floor.Parent = folder
 	
@@ -38,7 +62,7 @@ function MapService.BuildArena()
 		wall.Size = wSize
 		wall.Position = pos
 		wall.Color = ICE_COLOR
-		wall.Material = Enum.Material.Ice
+		wall.Material = WALL_MAT
 		wall.Anchored = true
 		wall.Parent = folder
 		
@@ -56,7 +80,7 @@ function MapService.BuildArena()
 				merlon.Size = Vector3.new(wSize.X, 3, merlonSize)
 			end
 			merlon.Color = ICE_COLOR
-			merlon.Material = Enum.Material.Ice
+			merlon.Material = WALL_MAT
 			merlon.Anchored = true
 			merlon.Parent = folder
 		end
@@ -81,8 +105,8 @@ function MapService.BuildArena()
 			layer.Name = "PyramidLayer"
 			layer.Size = Vector3.new(lSize, layerHeight, lSize)
 			layer.Position = pos + Vector3.new(0, (i-1) * layerHeight + layerHeight/2 - 1, 0)
-			layer.Color = Color3.fromRGB(200, 240, 255)
-			layer.Material = Enum.Material.Ice
+			layer.Color = ICE_COLOR
+			layer.Material = WALL_MAT
 			layer.Anchored = true
 			layer.Parent = folder
 			
@@ -116,7 +140,7 @@ function MapService.BuildArena()
 		cap.Size = Vector3.new(6, 0.3, bridge.Size.Z)
 		cap.CFrame = bridge.CFrame * CFrame.new(0, 0.7, 0)
 		cap.Color = SNOW_COLOR
-		cap.Material = Enum.Material.Snow
+		cap.Material = FLOOR_MAT
 		cap.Anchored = true
 		cap.Parent = folder
 	end
@@ -128,8 +152,8 @@ function MapService.BuildArena()
 			local spike = Instance.new("Part")
 			spike.Size = Vector3.new(2, math.random(6, 15), 2)
 			spike.Position = pos + Vector3.new(0, spike.Size.Y/2 - 1, 0)
-			spike.Color = Color3.fromRGB(160, 220, 255)
-			spike.Material = Enum.Material.Ice
+			spike.Color = ICE_COLOR
+			spike.Material = WALL_MAT
 			spike.Orientation = Vector3.new(math.random(-20, 20), math.random(0, 360), math.random(-20, 20))
 			spike.Anchored = true
 			spike.Parent = folder
@@ -140,21 +164,21 @@ function MapService.BuildArena()
 			mound.Size = Vector3.new(s, s, s)
 			mound.Position = pos + Vector3.new(0, -s/3, 0)
 			mound.Color = SNOW_COLOR
-			mound.Material = Enum.Material.Snow
+			mound.Material = FLOOR_MAT
 			mound.Anchored = true
 			mound.Parent = folder
 		else
 			local pillar = Instance.new("Part")
 			pillar.Size = Vector3.new(4, math.random(10, 20), 4)
 			pillar.Position = pos + Vector3.new(0, pillar.Size.Y/2 - 1, 0)
-			pillar.Color = Color3.fromRGB(180, 240, 255)
-			pillar.Material = Enum.Material.Ice
+			pillar.Color = ICE_COLOR
+			pillar.Material = WALL_MAT
 			pillar.Anchored = true
 			pillar.Parent = folder
 			local band = Instance.new("Part")
 			band.Size = Vector3.new(4.2, 1, 4.2)
 			band.Position = pillar.Position + Vector3.new(0, math.random(-3, 3), 0)
-			band.Color = Color3.fromRGB(0, 200, 255)
+			band.Color = NEON_COLOR
 			band.Material = Enum.Material.Neon
 			band.Anchored = true
 			band.Parent = folder
@@ -241,9 +265,21 @@ function MapService.BuildArena()
 	createBarrier("BarrierCeiling", Vector3.new(0, barrierHeight, 0), Vector3.new(size + 20, barrierThickness, size + 20))
 
 	-- 7. LIGHTING (Restored)
+	-- 7. LIGHTING
 	local lighting = game:GetService("Lighting")
-	lighting.Ambient = Color3.fromRGB(150, 180, 200)
-	lighting.OutdoorAmbient = Color3.fromRGB(100, 120, 150)
+	if mapID == "FIRE_ARENA" then
+		lighting.Ambient = Color3.fromRGB(80, 20, 20)
+		lighting.OutdoorAmbient = Color3.fromRGB(50, 10, 10)
+	elseif mapID == "SPACE" then
+		lighting.Ambient = Color3.fromRGB(20, 20, 40)
+		lighting.OutdoorAmbient = Color3.fromRGB(10, 10, 20)
+	elseif mapID == "CRYSTAL" then
+		lighting.Ambient = Color3.fromRGB(100, 50, 100)
+		lighting.OutdoorAmbient = Color3.fromRGB(80, 40, 80)
+	else
+		lighting.Ambient = Color3.fromRGB(150, 180, 200)
+		lighting.OutdoorAmbient = Color3.fromRGB(100, 120, 150)
+	end
 	lighting.Brightness = 2
 	
 	print("DECORATED SNOW CASTLE WITH HOLLOW CONTAINMENT BUILT!")

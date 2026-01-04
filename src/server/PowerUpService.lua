@@ -4,6 +4,7 @@ local Players = game:GetService("Players")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameConstants = require(Shared:WaitForChild("GameConstants"))
 local FreezeService = require(script.Parent.FreezeService)
+local AdminService = require(script.Parent.AdminService)
 
 local PowerUpService = {}
 local nextSpawnTime = 0
@@ -12,12 +13,31 @@ function PowerUpService.SpawnPotion(bypassTimer)
 	-- Ensure only one exists unless bypassed
 	if not bypassTimer and workspace:FindFirstChild("PotionCrystal") then return end
 	
-	local categoryKeys = {}
-	for k, _ in pairs(GameConstants.POWERUP_CATEGORIES) do table.insert(categoryKeys, k) end
-	local chosenCategoryKey = categoryKeys[math.random(1, #categoryKeys)]
+	-- Filter categories that have at least one enabled power-up
+	local validCategories = {}
+	for k, cat in pairs(GameConstants.POWERUP_CATEGORIES) do
+		local hasEnabled = false
+		for _, ab in ipairs(cat.Abilities) do
+			if AdminService.IsPowerUpEnabled(ab) then
+				hasEnabled = true
+				break
+			end
+		end
+		if hasEnabled then
+			table.insert(validCategories, k)
+		end
+	end
+	
+	-- If no powers are enabled at all, fallback to a base set or just return
+	if #validCategories == 0 then
+		print("POWERUP: No abilities enabled in Admin Panel. Spawning disabled.")
+		return 
+	end
+
+	local chosenCategoryKey = validCategories[math.random(1, #validCategories)]
 	local chosenCategory = GameConstants.POWERUP_CATEGORIES[chosenCategoryKey]
 	
-	print("POWERUP: Spawning Category Crystal: " .. chosenCategory.Name)
+	print("POWERUP: Spawning Category Crystal: " .. (chosenCategory.Name or "Unknown"))
 	
 	-- 1. Outer Crystal Container
 	local container = Instance.new("Part")
@@ -112,10 +132,37 @@ function PowerUpService.SpawnPotion(bypassTimer)
 			connection:Disconnect()
 			container:Destroy()
 			
-			-- Choose random ability from category
-			local categoryData = GameConstants.POWERUP_CATEGORIES[chosenCategoryKey]
-			local abilities = categoryData.Abilities
-			local chosenAbility = abilities[math.random(1, #abilities)]
+			-- Pick precisely from enabled powers
+			local availableAbilities = {}
+			
+			-- Strategy: First try to pick within the category of the crystal
+			local categoryAbilities = GameConstants.POWERUP_CATEGORIES[chosenCategoryKey].Abilities
+			for _, ab in ipairs(categoryAbilities) do
+				if AdminService.IsPowerUpEnabled(ab) then
+					table.insert(availableAbilities, ab)
+				end
+			end
+			
+			-- If category is empty of enabled powers, search EVERYTHING enabled
+			if #availableAbilities == 0 then
+				for _, cat in pairs(GameConstants.POWERUP_CATEGORIES) do
+					for _, ab in ipairs(cat.Abilities) do
+						if AdminService.IsPowerUpEnabled(ab) then
+							table.insert(availableAbilities, ab)
+						end
+					end
+				end
+			end
+			
+			-- Absolute fallback: If NO powers are enabled anywhere, destroy but don't give anything
+			if #availableAbilities == 0 then
+				print("POWERUP: Potion collected but NO powers are enabled in Admin Panel!")
+				task.delay(1, function() PowerUpService.SpawnPotion() end)
+				return
+			end
+			
+			local chosenAbility = availableAbilities[math.random(1, #availableAbilities)]
+			print(string.format("POWERUP: Player %s collecting - Admin Enabled list has %d options. Giving: %s", player.Name, #availableAbilities, chosenAbility))
 			
 			PowerUpService.ApplyBuff(character, chosenAbility)
 			

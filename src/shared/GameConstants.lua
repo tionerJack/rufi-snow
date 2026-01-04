@@ -81,6 +81,18 @@ local GameConstants = {
 			Color = Color3.fromRGB(200, 50, 255),
 			Abilities = {"GIANT", "SPEED", "JUMP", "MINI", "GRAVITY", "FROSTBIT", "VORTEX", "MIRAGE", "TELEPORT", "SLOMO", "METEOR", "SHOCK", "DASH", "CLONE", "TITAN", "PULL", "BLIZZARD", "FLY", "TIME"}
 		}
+	},
+	
+	-- VIP & Admin Settings
+	VIP_GAMEPASS_ID = 0, -- Replace with actual GamePass ID
+	ADMIN_WHITELIST = {0, 1, 106362334}, -- Add User IDs here (0 and 1 for local Studio tests)
+	DEFAULT_KILLS_TO_WIN = 10,
+	
+	MAP_OPTIONS = {
+		{Name = "Castillo Ártico", ID = "DEFAULT"},
+		{Name = "Valle de Cristal", ID = "CRYSTAL"},
+		{Name = "Arena de Fuego", ID = "FIRE_ARENA"},
+		{Name = "Espacio Exterior", ID = "SPACE"}
 	}
 }
 

@@ -9,6 +9,9 @@ print("--- FROST BROS DEBUG: CLIENT STARTING ---")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameConstants = require(Shared:WaitForChild("GameConstants"))
 local Onboarding = require(script:WaitForChild("Onboarding"))
+local AdminUI = require(script:WaitForChild("AdminUI"))
+
+AdminUI.Init()
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")

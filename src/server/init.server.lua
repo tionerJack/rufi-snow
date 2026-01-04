@@ -9,6 +9,9 @@ local FreezeService = require(script:WaitForChild("FreezeService"))
 local BasicEnemy = nil -- Removed monster logic
 local MapService = require(script:WaitForChild("MapService"))
 local PowerUpService = require(script:WaitForChild("PowerUpService"))
+local AdminService = require(script:WaitForChild("AdminService"))
+
+AdminService.Init()
 
 -- Setup Remotes (EARLY INITIALIZATION)
 local function getOrCreateRemote(name, className)
@@ -73,11 +76,45 @@ for _, player in ipairs(Players:GetPlayers()) do
 	onPlayerAdded(player)
 end
 
--- Build Mario Arena
-MapService.BuildArena()
+-- Build Initial Arena
+MapService.BuildArena("DEFAULT")
 
 -- Start Power-Up Loop
 PowerUpService.StartLoop()
+
+-- KILL SYSTEM & SCOREBOARD
+local playerKills = {}
+local remoteLeaderboard = getOrCreateRemote("LeaderboardUpdate")
+
+local function updateLeaderboard()
+	local scores = {}
+	for _, p in ipairs(Players:GetPlayers()) do
+		scores[p.Name] = playerKills[p] or 0
+	end
+	remoteLeaderboard:FireAllClients(scores)
+end
+
+local function checkWin(player)
+	local kills = playerKills[player] or 0
+	if kills >= AdminService.GetKillsToWin() then
+		print(string.format("GAME WINNER: %s with %d kills!", player.Name, kills))
+		local remoteFeedback = ReplicatedStorage:FindFirstChild("GameplayFeedback")
+		if remoteFeedback then
+			remoteFeedback:FireAllClients("MultiKill", player.Name, kills)
+		end
+		-- Reset Scores after win
+		playerKills = {}
+		updateLeaderboard()
+	end
+end
+
+-- Export for other modules
+_G.AddKill = function(attacker)
+	if not attacker or not attacker:IsA("Player") then return end
+	playerKills[attacker] = (playerKills[attacker] or 0) + 1
+	updateLeaderboard()
+	checkWin(attacker)
+end
 
 -- Remotes are now setup at the top
 

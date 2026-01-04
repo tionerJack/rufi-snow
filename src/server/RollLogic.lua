@@ -128,22 +128,9 @@ function RollLogic.StartRolling(enemy, direction, pusher)
 				p:Emit(30)
 				task.delay(1, function() spark:Destroy() end)
 				
-				-- MULTI-KILL TRACKING
+				-- Global Kill Tracking
 				if humanoid.Health <= 0 and pusher then
-					local now = os.clock()
-					local lastKillTime = pusher:GetAttribute("LastKillTime") or 0
-					local killCount = (now - lastKillTime < 4) and (pusher:GetAttribute("KillCombo") or 0) + 1 or 1
-					
-					pusher:SetAttribute("LastKillTime", now)
-					pusher:SetAttribute("KillCombo", killCount)
-					
-					if killCount >= 2 then
-						print("SERVER: Multi-Kill Announcement for", pusher.Name, "x", killCount)
-						local remoteFeedback = ReplicatedStorage:FindFirstChild("GameplayFeedback")
-						if remoteFeedback then
-							remoteFeedback:FireAllClients("MultiKill", pusher.Name, killCount)
-						end
-					end
+					if _G.AddKill then _G.AddKill(pusher) end
 				end
 			end
 		end
