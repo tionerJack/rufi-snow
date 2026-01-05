@@ -87,62 +87,20 @@ local function showAnnouncement(playerName, powerKey, actionType)
 		if not data then label:Destroy() return end
 		label.TextColor3 = data.Color
 		if actionType == "SPAWN" then
-			label.Text = string.format("¡Ha aparecido una Pócima de %s!", data.Name:upper())
+			label.Text = string.format("¡Ha aparecido una Pócima de %s %s!", data.Emoji, data.Name:upper())
 		else
-			label.Text = string.format("¡%s OBTUVO EL PODER: %s!", playerName:upper(), data.Name:upper())
+			-- COLLECT broadcast: Help players learn icons
+			label.TextSize = 35
+			label.Text = string.format("¡%s obtuvo %s %s!", playerName:upper(), data.Emoji, data.Name:upper())
 		end
 	end
 	
 	label.TextStrokeTransparency = 0.5
 	label.Parent = gui
 	
-	-- Manage LOCAL PLAYER HUD
+	-- Manage LOCAL PLAYER HUD (Highlight in Rotation HUD)
 	if actionType == "COLLECT" and playerName == player.Name and data then
-		if activePowerHUD then activePowerHUD:Destroy() end
-		
-		local hud = Instance.new("Frame")
-		hud.Name = "PowerUpHUD"
-		hud.Size = UDim2.new(0, 200, 0, 50)
-		hud.Position = UDim2.new(1, -220, 0.05, 0) -- Top Right
-		hud.BackgroundColor3 = Color3.fromRGB(10, 20, 30)
-		hud.BackgroundTransparency = 0.4
-		hud.Parent = gui
-		activePowerHUD = hud
-		
-		local corner = Instance.new("UICorner")
-		corner.CornerRadius = UDim.new(0, 10)
-		corner.Parent = hud
-		
-		local stroke = Instance.new("UIStroke")
-		stroke.Thickness = 3
-		stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-		stroke.Color = data.Color
-		stroke.Parent = hud
-		
-		local textLabel = Instance.new("TextLabel")
-		textLabel.Size = UDim2.new(1, 0, 1, 0)
-		textLabel.BackgroundTransparency = 1
-		textLabel.Font = Enum.Font.FredokaOne
-		textLabel.TextColor3 = Color3.new(1, 1, 1)
-		textLabel.TextSize = 18
-		textLabel.Text = string.format("%s\n%.1fs", data.Name:upper(), GameConstants.POWERUP_DURATION)
-		textLabel.Parent = hud
-		
-		task.spawn(function()
-			local timeLeft = GameConstants.POWERUP_DURATION
-			local currentPowerName = data.Name
-			while timeLeft > 0 and hud.Parent and activePowerHUD == hud do
-				timeLeft -= task.wait(0.1)
-				textLabel.Text = string.format("%s\n%.1fs", currentPowerName:upper(), math.max(0, timeLeft))
-				if timeLeft < 3 then
-					textLabel.TextColor3 = (math.floor(timeLeft * 10) % 2 == 0) and Color3.new(1, 0, 0) or Color3.new(1, 1, 1)
-				end
-			end
-			if hud.Parent and activePowerHUD == hud then 
-				hud:Destroy()
-				activePowerHUD = nil
-			end
-		end)
+		AdminUI.HighlightPower(powerKey, GameConstants.POWERUP_DURATION)
 	end
 
 	-- Global Animation (Label)
@@ -425,23 +383,9 @@ task.spawn(function()
 		if state == Enum.UserInputState.Begin then
 			fire()
 		end
-	end, true, Enum.KeyCode.F, Enum.UserInputType.MouseButton1)
+	end, false, Enum.KeyCode.F, Enum.UserInputType.MouseButton1)
 	
-	local button = ContextActionService:GetButton("FireIce")
-	if button then
-		print("CLIENT: Mobile button created! Configuring visuals...")
-		ContextActionService:SetTitle("FireIce", "FIRE")
-		ContextActionService:SetPosition("FireIce", UDim2.new(0.5, -150, 0.5, 0)) -- Center-Left
-		button.Size = UDim2.new(0, 90, 0, 90)
-		button.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
-		
-		-- Ensure a UICorner for aesthetic
-		local corner = Instance.new("UICorner")
-		corner.CornerRadius = UDim.new(0.5, 0)
-		corner.Parent = button
-	else
-		print("CLIENT: Warning: ContextActionService failed to create a mobile button.")
-	end
+	print("CLIENT: FireIce action bound (Mobile button disabled).")
 end)
 
 -- Tap to fire support for mobile

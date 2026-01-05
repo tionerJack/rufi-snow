@@ -37,16 +37,22 @@ function PowerUpService.SpawnPotion(bypassTimer)
 	local chosenCategoryKey = validCategories[math.random(1, #validCategories)]
 	local chosenCategory = GameConstants.POWERUP_CATEGORIES[chosenCategoryKey]
 	
-	print("POWERUP: Spawning Category Crystal: " .. (chosenCategory.Name or "Unknown"))
+	-- Global Announcement (SILENCED BY USER REQUEST)
+	-- local remoteNotice = ReplicatedStorage:FindFirstChild("PowerUpNotice")
+	-- if remoteNotice then
+	-- 	remoteNotice:FireAllClients("SERVER", chosenCategoryKey, "SPAWN_CATEGORY")
+	-- end
+
+	-- print("POWERUP: Spawning Category Crystal: " .. (chosenCategory.Name or "Unknown"))
 	
 	-- 1. Outer Crystal Container
 	local container = Instance.new("Part")
 	container.Name = "PotionCrystal"
-	container.Size = Vector3.new(2.4, 3.8, 2.4)
+	container.Size = Vector3.new(4, 6, 4) -- Bigger
 	container.Color = Color3.fromRGB(200, 240, 255)
 	container.Material = Enum.Material.Glass
-	container.Transparency = 0.7
-	container.Reflectance = 0.2
+	container.Transparency = 0.5
+	container.Reflectance = 0.5
 	container.Anchored = true
 	container.CanCollide = false
 	container:SetAttribute("CategoryType", chosenCategoryKey)
@@ -55,7 +61,7 @@ function PowerUpService.SpawnPotion(bypassTimer)
 	local core = Instance.new("Part")
 	core.Name = "LiquidCore"
 	core.Shape = Enum.PartType.Ball
-	core.Size = Vector3.new(1.4, 1.8, 1.4)
+	core.Size = Vector3.new(3, 3, 3) -- Bigger core
 	core.Color = chosenCategory.Color
 	core.Material = Enum.Material.Neon
 	core.Anchored = true
@@ -65,8 +71,8 @@ function PowerUpService.SpawnPotion(bypassTimer)
 	-- 3. Point Light for Glow
 	local light = Instance.new("PointLight")
 	light.Color = chosenCategory.Color
-	light.Range = 10
-	light.Brightness = 3
+	light.Range = 25 -- Way more range
+	light.Brightness = 10 -- Way more brightness
 	light.Parent = core
 	
 	-- 4. Internal Magical Bubbles
@@ -91,11 +97,21 @@ function PowerUpService.SpawnPotion(bypassTimer)
 	end
 	
 	local targetPeak = peaks[math.random(1, #peaks)]
-	container.Position = targetPeak.Position + Vector3.new(0, 8, 0)
+	container.Position = targetPeak.Position + Vector3.new(0, 12, 0) -- Higher up
 	core.Position = container.Position
 	container.Parent = workspace
 	
-	-- (Spawn notification disabled to reduce spam)
+	-- 5. VISIBILITY BEAM
+	local beamPart = Instance.new("Part")
+	beamPart.Name = "VisibilityBeam"
+	beamPart.Size = Vector3.new(1, 100, 1)
+	beamPart.Position = container.Position + Vector3.new(0, 50, 0)
+	beamPart.Transparency = 0.8
+	beamPart.Color = chosenCategory.Color
+	beamPart.Material = Enum.Material.Neon
+	beamPart.Anchored = true
+	beamPart.CanCollide = false
+	beamPart.Parent = container
 	
 	-- Pulsing Core Animation
 	task.spawn(function()
@@ -166,10 +182,10 @@ function PowerUpService.SpawnPotion(bypassTimer)
 			
 			PowerUpService.ApplyBuff(character, chosenAbility)
 			
-			-- Respawn immediately
-			task.delay(1, function()
-				PowerUpService.SpawnPotion()
-			end)
+			-- Respawn after a delay
+			local delayTime = GameConstants.POWERUP_SPAWN_CHECK_INTERVAL or 10
+			nextSpawnTime = os.clock() + delayTime
+			print(string.format("POWERUP: Respawning in %d seconds...", delayTime))
 		end
 	end)
 end

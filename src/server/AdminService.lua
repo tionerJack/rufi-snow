@@ -10,7 +10,9 @@ local AdminService = {}
 -- State Variables
 AdminService.KillsToWin = GameConstants.DEFAULT_KILLS_TO_WIN
 AdminService.CurrentMap = "DEFAULT"
-AdminService.DisabledPowerUps = {} -- Initialized in Init to disable all by default
+AdminService.DisabledPowerUps = {} 
+AdminService.ActiveRotation = {} -- Current 4 active powers
+AdminService.NextRotationTime = 0
 
 function AdminService.Init()
 	-- Create RemoteEvents
@@ -26,6 +28,7 @@ function AdminService.Init()
 
 	local adminAction = createRemote("AdminAction")
 	local adminStateUpdate = createRemote("AdminStateUpdate")
+	local getAdminState = createRemote("GetAdminState", "RemoteFunction")
 
 	-- Initialize: Disable all by default
 	for key, _ in pairs(GameConstants.POWERUP_TYPES) do
@@ -49,18 +52,85 @@ function AdminService.Init()
 			AdminService.DisabledPowerUps[data] = not AdminService.DisabledPowerUps[data]
 			print(string.format("ADMIN: Power-Up %s is now %s", data, AdminService.DisabledPowerUps[data] and "DISABLED" or "ENABLED"))
 			adminStateUpdate:FireAllClients({DisabledPowerUps = AdminService.DisabledPowerUps})
-		elseif action == "ResetGame" then
-			-- Logic for game reset if needed
+		elseif action == "ForceSpawn" then
+			local PowerUpService = require(script.Parent.PowerUpService)
+			PowerUpService.SpawnPotion(true)
+		end
+	end)
+
+	getAdminState.OnServerInvoke = function(player)
+		return {
+			KillsToWin = AdminService.KillsToWin,
+			CurrentMap = AdminService.CurrentMap,
+			DisabledPowerUps = AdminService.DisabledPowerUps,
+			NextRotationTime = AdminService.NextRotationTime,
+			ActiveRotation = AdminService.ActiveRotation
+		}
+	end
+
+	-- 15-MINUTE SEEDED ROTATION SYSTEM
+	local function updateRotation()
+		local timestamp = os.time()
+		local interval = GameConstants.ROTATION_INTERVAL
+		local segment = math.floor(timestamp / interval)
+		AdminService.NextRotationTime = (segment + 1) * interval
+		
+		-- Use date + segment as seed for consistency across server restarts
+		local dateStr = os.date("!%Y%m%d", timestamp)
+		local seed = tonumber(dateStr) + segment
+		local rng = Random.new(seed)
+		
+		local newRotation = {}
+		local newDisabled = {}
+		
+		-- Disable all first
+		for key, _ in pairs(GameConstants.POWERUP_TYPES) do
+			newDisabled[key] = true
+		end
+		
+		-- Select 1 from each category
+		for _, catData in pairs(GameConstants.POWERUP_CATEGORIES) do
+			local abs = catData.Abilities
+			if #abs > 0 then
+				local picked = abs[rng:NextInteger(1, #abs)]
+				newRotation[picked] = true
+				newDisabled[picked] = false
+			end
+		end
+		
+		AdminService.ActiveRotation = newRotation
+		AdminService.DisabledPowerUps = newDisabled
+		
+		print("ROTATION: New abilities selected for segment " .. segment)
+		adminStateUpdate:FireAllClients({
+			DisabledPowerUps = AdminService.DisabledPowerUps,
+			NextRotationTime = AdminService.NextRotationTime,
+			ActiveRotation = AdminService.ActiveRotation
+		})
+	end
+
+	-- Initial update
+	updateRotation()
+
+	-- Check for rotation change every 10 seconds
+	task.spawn(function()
+		while true do
+			if os.time() >= AdminService.NextRotationTime then
+				updateRotation()
+			end
+			task.wait(10)
 		end
 	end)
 
 	-- Sync state to new players
 	Players.PlayerAdded:Connect(function(player)
-		task.wait(1) -- Wait for client UI to be ready
+		task.wait(1) 
 		adminStateUpdate:FireClient(player, {
 			KillsToWin = AdminService.KillsToWin,
 			CurrentMap = AdminService.CurrentMap,
-			DisabledPowerUps = AdminService.DisabledPowerUps
+			DisabledPowerUps = AdminService.DisabledPowerUps,
+			NextRotationTime = AdminService.NextRotationTime,
+			ActiveRotation = AdminService.ActiveRotation
 		})
 	end)
 end

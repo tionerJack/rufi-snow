@@ -25,13 +25,17 @@ function Onboarding.start()
 	-- Main Container
 	local container = Instance.new("Frame")
 	container.Name = "Container"
-	container.Size = UDim2.new(0.4, 400, 0.5, 300)
+	container.Size = UDim2.new(0.9, 0, 0.8, 0) -- Changed container size
 	container.Position = UDim2.new(0.5, 0, 0.5, 0)
 	container.AnchorPoint = Vector2.new(0.5, 0.5)
 	container.BackgroundColor3 = Color3.fromRGB(15, 25, 45)
 	container.BackgroundTransparency = 0.2
 	container.BorderSizePixel = 0
 	container.Parent = background
+	
+	local aspectRatio = Instance.new("UIAspectRatioConstraint") -- Added UIAspectRatioConstraint
+	aspectRatio.AspectRatio = 1.5
+	aspectRatio.Parent = container
 	
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, 20)
@@ -51,17 +55,6 @@ function Onboarding.start()
 	gradient.Rotation = 45
 	gradient.Parent = container
 
-	-- Title
-	local title = Instance.new("TextLabel")
-	title.Name = "Title"
-	title.Size = UDim2.new(1, 0, 0, 80)
-	title.BackgroundTransparency = 1
-	title.Font = Enum.Font.FredokaOne
-	title.TextSize = 42
-	title.TextColor3 = Color3.new(1, 1, 1)
-	title.Text = "¡BIENVENIDO A RUFI SNOW!"
-	title.Parent = container
-	
 	-- List Container
 	local list = Instance.new("Frame")
 	list.Name = "List"
@@ -87,6 +80,7 @@ function Onboarding.start()
 		emojiLabel.BackgroundTransparency = 1
 		emojiLabel.Font = Enum.Font.FredokaOne
 		emojiLabel.TextSize = 40
+		emojiLabel.TextScaled = true -- Added TextScaled
 		emojiLabel.Text = emoji
 		emojiLabel.Parent = frame
 		
@@ -96,6 +90,7 @@ function Onboarding.start()
 		textLabel.BackgroundTransparency = 1
 		textLabel.Font = Enum.Font.FredokaOne
 		textLabel.TextSize = 28
+		textLabel.TextScaled = true -- Added TextScaled
 		textLabel.TextColor3 = color or Color3.new(1, 1, 1)
 		textLabel.TextXAlignment = Enum.TextXAlignment.Left
 		textLabel.Text = text
@@ -117,7 +112,7 @@ function Onboarding.start()
 	-- Button
 	local button = Instance.new("TextButton")
 	button.Name = "ReadyButton"
-	button.Size = UDim2.new(0, 200, 0, 60)
+	button.Size = UDim2.new(0.4, 0, 0.15, 0) -- Adjusted button size to use scale
 	button.Position = UDim2.new(0.5, 0, 0.9, 0)
 	button.AnchorPoint = Vector2.new(0.5, 0.5)
 	button.BackgroundColor3 = Color3.fromRGB(0, 180, 255)
@@ -140,7 +135,6 @@ function Onboarding.start()
 	screenGui.Parent = playerGui
 	container.Size = UDim2.new(0, 0, 0, 0)
 	container.BackgroundTransparency = 1
-	title.TextTransparency = 1
 	button.BackgroundTransparency = 1
 	button.TextTransparency = 1
 	
@@ -156,13 +150,13 @@ function Onboarding.start()
 
 	-- Intro Tween
 	TweenService:Create(background, TweenInfo.new(0.5), {BackgroundTransparency = 0.4}):Play()
+	
 	TweenService:Create(container, TweenInfo.new(0.6, Enum.EasingStyle.Back), {
-		Size = UDim2.new(0.4, 400, 0.5, 300),
+		Size = UDim2.new(0.9, 0, 0.8, 0),
 		BackgroundTransparency = 0.2
 	}):Play()
 	
 	task.delay(0.4, function()
-		TweenService:Create(title, TweenInfo.new(0.4), {TextTransparency = 0}):Play()
 		local i = 0
 		for _, child in ipairs(list:GetChildren()) do
 			if child:IsA("Frame") then
