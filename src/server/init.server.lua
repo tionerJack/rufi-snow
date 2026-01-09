@@ -11,7 +11,10 @@ local MapService = require(script:WaitForChild("MapService"))
 local PowerUpService = require(script:WaitForChild("PowerUpService"))
 local AdminService = require(script:WaitForChild("AdminService"))
 
-AdminService.Init()
+task.spawn(function()
+	AdminService.Init()
+	print("SERVER: AdminService Initialized ✅")
+end)
 
 -- Setup Remotes (EARLY INITIALIZATION)
 local function getOrCreateRemote(name, className)
@@ -76,8 +79,23 @@ for _, player in ipairs(Players:GetPlayers()) do
 	onPlayerAdded(player)
 end
 
--- Build Initial Arena
-MapService.BuildArena("DEFAULT")
+task.spawn(function()
+	MapService.BuildArena("DEFAULT")
+	print("SERVER: Map Built ✅")
+end)
+
+-- Maintain Center Diablito
+task.spawn(function()
+	local BasicEnemy = require(script:WaitForChild("BasicEnemy"))
+	while true do
+		local existing = workspace:FindFirstChild("Diablito_Lvl1")
+		if not existing then
+			print("SERVER: Spawning Central Diablito...")
+			BasicEnemy.Spawn(Vector3.new(0, 5, 80), 1)
+		end
+		task.wait(5)
+	end
+end)
 
 -- Start Power-Up Loop
 PowerUpService.StartLoop()
@@ -185,30 +203,64 @@ remoteHit.OnServerEvent:Connect(function(player, hitPart)
 					-- Special PVP: If they are near frozen, fire makes it harder to thaw? Or just more damage.
 				end
 			
-			if attackerStats.isStun then
-				local oldSpeed = hum.WalkSpeed
-				hum.WalkSpeed = 0
-				task.delay(3, function() if hum then hum.WalkSpeed = oldSpeed end end)
-			end
-			
 			if attackerStats.isSloMo then
-				local oldSpeed = hum.WalkSpeed
-				hum.WalkSpeed = 4
-				task.delay(4, function() if hum then hum.WalkSpeed = oldSpeed end end)
+				local freezeHits = model:GetAttribute("FreezeHits") or 0
+				local isFrozen = model:GetAttribute("IsFrozen")
+				if freezeHits > 0 or isFrozen then
+					local oldSpeed = hum.WalkSpeed
+					hum.WalkSpeed = 4
+					task.delay(4, function() if hum then hum.WalkSpeed = oldSpeed end end)
+				end
 			end
 			
 			if attackerStats.isVenom then
-				task.spawn(function()
-					for i = 1, 5 do
-						if hum then hum:TakeDamage(3) end
-						task.wait(1)
+				-- Apply Venom Effect (10 seconds)
+				local targetRoot = model:FindFirstChild("HumanoidRootPart")
+				if targetRoot then
+					local venomSmoke = targetRoot:FindFirstChild("VenomSmoke")
+					if not venomSmoke then
+						venomSmoke = Instance.new("ParticleEmitter")
+						venomSmoke.Name = "VenomSmoke"
+						venomSmoke.Texture = "rbxassetid://1084969810" -- Toxic smoke texture
+						venomSmoke.Color = ColorSequence.new(Color3.fromRGB(0, 255, 0))
+						venomSmoke.Size = NumberSequence.new(2, 4)
+						venomSmoke.Transparency = NumberSequence.new(0.5, 1)
+						venomSmoke.Lifetime = NumberRange.new(0.5, 1)
+						venomSmoke.Rate = 20
+						venomSmoke.Parent = targetRoot
 					end
-				end)
+					
+					task.spawn(function()
+						local duration = 10
+						local start = os.clock()
+						while os.clock() - start < duration and model.Parent do
+							local freezeHits = model:GetAttribute("FreezeHits") or 0
+							local isFrozen = model:GetAttribute("IsFrozen")
+							
+							-- Only damage if partially or fully frozen
+							if (freezeHits > 0 or isFrozen) and hum.Health > 0 then
+								hum:TakeDamage(4)
+								-- Green flash effect
+								local h = model:FindFirstChild("VenomHighlight") or Instance.new("Highlight")
+								h.Name = "VenomHighlight"
+								h.FillColor = Color3.fromRGB(0, 200, 0)
+								h.FillTransparency = 0.6
+								h.Parent = model
+								task.delay(0.2, function() if h then h:Destroy() end end)
+							end
+							task.wait(1)
+						end
+						if venomSmoke then venomSmoke:Destroy() end
+					end)
+				end
 			end
 			
 			if attackerStats.isShrink then
-				print("SHRINK: Reducing " .. model.Name)
-				local factor = 0.7
+				if not model:GetAttribute("WasShrunk") then
+					model:SetAttribute("WasShrunk", true)
+					print("SHRINK: Reducing " .. model.Name)
+					local factor = 0.5
+					hum.WalkSpeed *= 0.7
 				
 				-- 1. R15 Player Scaling
 				if hum:FindFirstChild("BodyHeightScale") then
@@ -237,6 +289,7 @@ remoteHit.OnServerEvent:Connect(function(player, hitPart)
 				highlight.OutlineTransparency = 1
 				highlight.Parent = model
 				task.delay(0.5, function() highlight:Destroy() end)
+				end
 			end
 			
 			if attackerStats.isBerserk then
@@ -261,10 +314,25 @@ remoteHit.OnServerEvent:Connect(function(player, hitPart)
 				local root = m:FindFirstChild("HumanoidRootPart")
 				if root then
 					local pullDir = (pos - root.Position).Unit
-					root:ApplyImpulse(pullDir * 2000)
+					root:ApplyImpulse(pullDir * 3000)
+					-- VORTEX EFFECT: Freeze!
+					FreezeService.ApplyHit(m, player)
+					FreezeService.ApplyHit(m, player)
 				end
 			end
 		end
+	end
+	
+	if attackerStats.hasWall then
+		local iceWall = Instance.new("Part")
+		iceWall.Name = "TemporaryIceWall"
+		iceWall.Size = Vector3.new(12, 10, 2)
+		iceWall.Position = hitPart.Position + Vector3.new(0, 5, 0)
+		iceWall.Color = Color3.fromRGB(200, 255, 255)
+		iceWall.Material = Enum.Material.Ice
+		iceWall.Anchored = true
+		iceWall.Parent = workspace
+		task.delay(10, function() if iceWall then iceWall:Destroy() end end)
 	end
 
 	if attackerStats.isExplosive then

@@ -224,7 +224,96 @@ local function fire(targetOverride)
 			direction = (CFrame.new(Vector3.zero, direction) * CFrame.Angles(0, math.rad(angleOffset), 0)).LookVector
 		end
 		
-		-- LEASER LOGIC (Instant Hit)
+		-- FREEZE BEAM (Piercing Beam)
+		if character:GetAttribute("HasFreezeBeam") then
+			local range = 800
+			local rayParams = RaycastParams.new()
+			rayParams.FilterDescendantsInstances = {character}
+			rayParams.FilterType = Enum.RaycastFilterType.Exclude
+			
+			-- Multi-hit detection
+			local hitPositions = {}
+			local currentStart = startPos
+			local currentDist = 0
+			
+			while currentDist < range do
+				local result = workspace:Raycast(currentStart, direction * (range - currentDist), rayParams)
+				if result then
+					local distance = (result.Position - currentStart).Magnitude
+					currentDist += distance
+					table.insert(hitPositions, result.Position)
+					
+					local hitModel = result.Instance:FindFirstAncestorOfClass("Model")
+					if hitModel and hitModel:FindFirstChild("Humanoid") then
+						local remote = ReplicatedStorage:FindFirstChild("IceHit")
+						if remote then remote:FireServer(result.Instance) end
+						-- Continue ray through the target
+						currentStart = result.Position + direction * 0.5
+						table.insert(rayParams.FilterDescendantsInstances, hitModel)
+					else
+						-- Hit a wall, stop
+						break
+					end
+				else
+					currentDist = range
+					table.insert(hitPositions, currentStart + direction * (range - currentDist))
+				end
+			end
+			
+			-- Beam Visual
+			local endPos = hitPositions[#hitPositions] or (startPos + direction * range)
+			local dist = (endPos - startPos).Magnitude
+			local beam = Instance.new("Part")
+			beam.Anchored = true beam.CanCollide = false
+			beam.Color = Color3.fromRGB(0, 255, 255) beam.Material = Enum.Material.Neon
+			beam.Transparency = 0.2
+			beam.Size = Vector3.new(0.5, 0.5, dist)
+			beam.CFrame = CFrame.lookAt(startPos, endPos) * CFrame.new(0, 0, -dist/2)
+			beam.Parent = workspace
+			
+			local beamPulse = TweenService:Create(beam, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = Vector3.new(1.5, 1.5, dist), Transparency = 1})
+			beamPulse:Play()
+			beamPulse.Completed:Connect(function() beam:Destroy() end)
+			
+			-- Particle effects along beam
+			task.spawn(function()
+				for i = 1, 10 do
+					local p = Instance.new("Part")
+					p.Size = Vector3.new(1,1,1) p.Transparency = 1 p.Anchored = true p.CanCollide = false
+					p.Position = startPos:Lerp(endPos, i/10)
+					p.Parent = workspace
+					local e = Instance.new("ParticleEmitter")
+					e.Texture = "rbxassetid://6071575923"
+					e.Color = ColorSequence.new(Color3.fromRGB(200, 255, 255))
+					e.Rate = 0 e.Lifetime = NumberRange.new(0.2, 0.4)
+					e.Parent = p e:Emit(5)
+					task.delay(0.5, function() p:Destroy() end)
+				end
+			end)
+			return
+		end
+		
+		-- Flight Input Monitoring (Vertical Control) - Fixed position
+		if character:GetAttribute("HasFlight") and not character:GetAttribute("FlightInputActive") then
+			character:SetAttribute("FlightInputActive", true)
+			task.spawn(function()
+				while character.Parent and character:GetAttribute("HasFlight") do
+					local up = UserInputService:IsKeyDown(Enum.KeyCode.Space)
+					local down = UserInputService:IsKeyDown(Enum.KeyCode.LeftControl)
+					local vDir = (up and 1 or 0) - (down and 1 or 0)
+					
+					local currentTarget = character:GetAttribute("FlightTargetHeight") or 25
+					if vDir ~= 0 then
+						local newTarget = math.clamp(currentTarget + (vDir * 2.5), 5, 200)
+						character:SetAttribute("FlightTargetHeight", newTarget)
+					end
+					task.wait(0.05)
+				end
+				character:SetAttribute("FlightInputActive", nil)
+			end)
+		end
+
+		-- LASER LOGIC (Instant Hit)
 		if character:GetAttribute("HasLaser") then
 			local rayParams = RaycastParams.new()
 			rayParams.FilterDescendantsInstances = {character}
@@ -250,28 +339,47 @@ local function fire(targetOverride)
 			return
 		end
 		
+		-- SNOWBALL LOGIC (Normal / Vortex / Thorns)
 		local projectile = Instance.new("Part")
-		local isBeam = character:GetAttribute("HasFreezeBeam")
-		local isShrink = character:GetAttribute("HasShrinkRay")
-		local isExplo = character:GetAttribute("HasExplosiveBalls")
+		local isVortex = character:GetAttribute("HasVortexPower")
+		local hasThorns = character:GetAttribute("HasThorns")
 		
 		projectile.Shape = Enum.PartType.Ball
-		projectile.Size = isBeam and Vector3.new(1.2, 1.2, 20) 
+		projectile.Size = (isVortex and Vector3.new(5, 5, 5) -- Larger for vortex
 			or (isShrink and Vector3.new(0.8, 0.8, 0.8)
 			or (isMega and Vector3.new(3.5, 3.5, 3.5) 
-			or Vector3.new(1.4, 1.4, 1.4)))
+			or Vector3.new(1.4, 1.4, 1.4))))
 			
-		projectile.Color = isBeam and Color3.fromRGB(0, 191, 255) 
+		projectile.Color = (isVortex and Color3.fromRGB(138, 43, 226) -- Purple for vortex
 			or (isShrink and Color3.fromRGB(0, 255, 0)
 			or (isExplo and Color3.fromRGB(255, 100, 0)
-			or (isMega and Color3.fromRGB(255, 0, 0) 
-			or Color3.fromRGB(180, 230, 255))))
+			or (isMega and Color3.fromRGB(240, 248, 255) 
+			or Color3.fromRGB(180, 230, 255)))))
 			
 		projectile.Material = Enum.Material.Neon
 		projectile.CanCollide = false
 		projectile.Anchored = true
 		projectile.CFrame = CFrame.lookAt(startPos, startPos + direction)
 		projectile.Parent = workspace
+		
+		if isVortex then
+			-- Vortex visual whirl
+			local ring = Instance.new("Part")
+			ring.Size = Vector3.new(6, 0.5, 6)
+			ring.Color = Color3.fromRGB(0, 255, 255)
+			ring.Transparency = 0.5
+			ring.Material = Enum.Material.Neon
+			ring.CanCollide = false
+			ring.Parent = projectile
+			local w = Instance.new("Weld")
+			w.Part0 = projectile w.Part1 = ring w.Parent = ring
+			task.spawn(function()
+				while ring.Parent do
+					ring.CFrame = ring.CFrame * CFrame.Angles(0, math.rad(20), 0)
+					task.wait()
+				end
+			end)
+		end
 		
 		-- VISUAL TRAIL
 		local trail = Instance.new("Trail")
@@ -303,6 +411,18 @@ local function fire(targetOverride)
 				local step = speed * task.wait()
 				distance += step
 				projectile.CFrame = projectile.CFrame * CFrame.new(0, 0, -step)
+				
+				-- Thorn Trail (Visual)
+				if hasThorns then
+					local spike = Instance.new("Part")
+					spike.Size = Vector3.new(1, math.random(2, 5), 1)
+					spike.Position = projectile.Position - Vector3.new(0, 1.5, 0)
+					spike.Color = Color3.fromRGB(0, 200, 0)
+					spike.Material = Enum.Material.Ice
+					spike.Anchored = true spike.CanCollide = false
+					spike.Parent = workspace
+					task.delay(3, function() if spike then spike:Destroy() end end)
+				end
 				
 				local rayParams = RaycastParams.new()
 				rayParams.FilterDescendantsInstances = {character, projectile}

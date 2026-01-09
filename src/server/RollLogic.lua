@@ -27,6 +27,22 @@ function RollLogic.StartRolling(enemy, direction, pusher)
 		if remoteFeedback then remoteFeedback:FireClient(pusher, "CameraShake", 1.5) end
 	end
 	
+	-- ABILITY: TELEPORT (Teleport pushed balls forward)
+	if pusher and pusher.Character and pusher.Character:GetAttribute("HasTeleport") then
+		local teleportDist = 40
+		local targetPos = root.Position + direction.Unit * teleportDist
+		
+		-- Visual Flash at destination
+		local flash = Instance.new("Part")
+		flash.Shape = Enum.PartType.Ball flash.Size = Vector3.new(8, 8, 8)
+		flash.Color = Color3.fromRGB(0, 255, 255) flash.Material = Enum.Material.Neon
+		flash.Anchored = true flash.CanCollide = false
+		flash.Position = targetPos flash.Parent = workspace
+		task.delay(0.2, function() if flash then flash:Destroy() end end)
+		
+		root.CFrame = CFrame.new(targetPos)
+	end
+	
 	-- Physics for rolling
 	local attachment = Instance.new("Attachment", root)
 	local linearVelocity = Instance.new("LinearVelocity", root)

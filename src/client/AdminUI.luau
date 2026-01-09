@@ -14,45 +14,62 @@ function AdminUI.Init()
 	local playerGui = player:WaitForChild("PlayerGui")
 	
 	-- Admin/VIP Detection
-	local isVIP = false
-	-- We can't easily check UserOwnsGamePassAsync from client safely without a remote, 
-	-- but we'll try or just rely on the server to reject unauthorized attempts.
-	-- For UI visibility, let's check a whitelist on client too.
 	local isAdmin = false
-	for _, id in ipairs(GameConstants.ADMIN_WHITELIST) do
-		if player.UserId == id then isAdmin = true break end
+	local marketplaceService = game:GetService("MarketplaceService")
+	
+	local function checkAccess()
+		-- 1. Whitelist Check
+		for _, id in ipairs(GameConstants.ADMIN_WHITELIST) do
+			if player.UserId == id then isAdmin = true break end
+		end
+
+		-- 2. Developer/Studio Bypass
+		if RunService:IsStudio() or player.UserId <= 0 or game.CreatorId == player.UserId then
+			isAdmin = true
+		end
+
+		-- 3. VIP GamePass Check
+		if not isAdmin and GameConstants.VIP_GAMEPASS_ID > 0 then
+			local success, owns = pcall(function()
+				return marketplaceService:UserOwnsGamePassAsync(player.UserId, GameConstants.VIP_GAMEPASS_ID)
+			end)
+			if success and owns then isAdmin = true end
+		end
+		
+		return isAdmin
 	end
 
-	-- Developer/Studio Bypass
-	if RunService:IsStudio() or player.UserId <= 0 or game.CreatorId == player.UserId then
-		isAdmin = true
-	end
-
-	print("ADMIN PANEL: Checking access for " .. player.Name .. " (ID: " .. player.UserId .. ") -> Admin: " .. tostring(isAdmin))
-
-	-- Only show if Admin/VIP (Server-side check is more robust)
-	-- To handle VIP, we'd normally use a RemoteFunction to check.
-	-- For now, let's assume if they have the UI, they can try to use it.
+	-- Initial direct check for Studio/Whitelist
+	isAdmin = checkAccess()
 	
 	local screenGui = Instance.new("ScreenGui")
 	screenGui.Name = "AdminPanelUI"
 	screenGui.ResetOnSpawn = false
-	screenGui.DisplayOrder = 999 -- Ensure it's on top
-	screenGui.Enabled = isAdmin -- Enable immediately if admin
+	screenGui.DisplayOrder = 999 
+	screenGui.Enabled = true -- HUD should always be available
 	screenGui.Parent = playerGui
 
-	-- Admin Button (To open panel)
+	-- Admin Button (Only visible for authorized users)
 	local adminButton = Instance.new("TextButton")
+	adminButton.Visible = isAdmin 
 	adminButton.Name = "ToggleAdmin"
-	adminButton.Size = UDim2.new(0, 35, 0, 35) -- ~20% smaller than previous 40px, but square for icon
-	adminButton.Position = UDim2.new(1, -10, 0, 10) 
+	
+	-- Async VIP update (in case it takes a moment to fetch)
+	task.spawn(function()
+		if not adminButton.Visible then
+			local hasAccess = checkAccess()
+			adminButton.Visible = hasAccess
+		end
+	end)
+	adminButton.Size = UDim2.new(0, 50, 0, 50) -- Larger button
+	adminButton.Position = UDim2.new(1, -20, 0, 70) -- Lowered and moved left to avoid Roblox UI
 	adminButton.AnchorPoint = Vector2.new(1, 0)
 	adminButton.ZIndex = 1100
 	adminButton.BackgroundColor3 = Color3.fromRGB(255, 215, 0) -- Gold
 	adminButton.TextColor3 = Color3.new(0, 0, 0)
 	adminButton.Text = "👑"
 	adminButton.Font = Enum.Font.FredokaOne
-	adminButton.TextSize = 22
+	adminButton.TextSize = 28
 	adminButton.Parent = screenGui
 	
 	local corner = Instance.new("UICorner")
@@ -87,7 +104,7 @@ function AdminUI.Init()
 	list.Size = UDim2.new(0.9, 0, 0.8, 0)
 	list.Position = UDim2.new(0.05, 0, 0.15, 0)
 	list.BackgroundTransparency = 1
-	list.CanvasSize = UDim2.new(0, 0, 2, 0)
+	list.CanvasSize = UDim2.new(0, 0, 3.5, 0)
 	list.ScrollBarThickness = 6
 	list.Parent = panel
 	
@@ -137,14 +154,28 @@ function AdminUI.Init()
 	mSelect.Size = UDim2.new(0, 120, 0, 30)
 	mSelect.Position = UDim2.new(1, -130, 0, 5)
 	mSelect.TextSize = 12
-	mSelect.Text = "CAMBIAR"
+	mSelect.Text = "MAPA: ÁRTICO"
 	mSelect.Parent = mFrame
+	
+	-- Tooltip Info Label (Persistent at bottom of panel)
+	local infoLabel = Instance.new("TextLabel")
+	infoLabel.Name = "InfoLabel"
+	infoLabel.Size = UDim2.new(1, -20, 0, 40)
+	infoLabel.Position = UDim2.new(0, 10, 1, -50)
+	infoLabel.BackgroundColor3 = Color3.new(0,0,0)
+	infoLabel.BackgroundTransparency = 0.5
+	infoLabel.TextColor3 = Color3.new(1, 1, 1)
+	infoLabel.Font = Enum.Font.FredokaOne
+	infoLabel.TextSize = 14
+	infoLabel.Text = "Pasa el mouse sobre una habilidad..."
+	infoLabel.ZIndex = 1200
+	infoLabel.Parent = panel
 	
 	local currentMapIdx = 1
 	mSelect.MouseButton1Click:Connect(function()
 		currentMapIdx = (currentMapIdx % #GameConstants.MAP_OPTIONS) + 1
 		local map = GameConstants.MAP_OPTIONS[currentMapIdx]
-		mSelect.Text = map.Name
+		mSelect.Text = "MAPA: " .. map.Name
 		ReplicatedStorage.AdminAction:FireServer("ChangeMap", map.ID)
 	end)
 
@@ -161,30 +192,123 @@ function AdminUI.Init()
 		ReplicatedStorage.AdminAction:FireServer("ForceSpawn")
 	end)
 
-	-- 3. Power-Up Toggles (Generating dynamically)
+	-- 2d. Auto Rotation Toggle
+	local autoRotFrame, _ = createControl("Rotación Automática:")
+	local autoRotBtn = Instance.new("TextButton")
+	autoRotBtn.Size = UDim2.new(0, 120, 0, 30)
+	autoRotBtn.Position = UDim2.new(1, -130, 0, 5)
+	autoRotBtn.Text = "AUTO: ON"
+	autoRotBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
+	autoRotBtn.TextColor3 = Color3.new(1, 1, 1)
+	autoRotBtn.Parent = autoRotFrame
+
+	autoRotBtn.MouseButton1Click:Connect(function()
+		ReplicatedStorage.AdminAction:FireServer("ToggleAutoRotation")
+	end)
+
+	-- 3. Power-Up Toggles (Categorized Grid)
+	local manualSelectionGroup = Instance.new("Frame")
+	manualSelectionGroup.Name = "ManualSelectionGroup"
+	manualSelectionGroup.Size = UDim2.new(1, 0, 0, 0) -- Automatic height via UIListLayout? No, scrolling frame handles it.
+	manualSelectionGroup.BackgroundTransparency = 1
+	manualSelectionGroup.Parent = list
+	
+	local manualLayout = Instance.new("UIListLayout")
+	manualLayout.Padding = UDim.new(0, 10)
+	manualLayout.Parent = manualSelectionGroup
+
 	local pLabel = Instance.new("TextLabel")
 	pLabel.Size = UDim2.new(1, 0, 0, 30)
-	pLabel.Text = "Habilidades (TODAS OFF POR DEFAULT):"
+	pLabel.Text = "CONTROL DE HABILIDADES (Manual):"
 	pLabel.TextColor3 = Color3.new(1, 1, 0)
 	pLabel.BackgroundTransparency = 1
 	pLabel.Font = Enum.Font.FredokaOne
-	pLabel.Parent = list
+	pLabel.Parent = manualSelectionGroup
 	
 	local powerButtons = {}
-	for key, data in pairs(GameConstants.POWERUP_TYPES) do
-		local f, _ = createControl(data.Name)
-		local btn = Instance.new("TextButton")
-		btn.Size = UDim2.new(0.3, 0, 0.8, 0)
-		btn.Position = UDim2.new(0.65, 0, 0.1, 0)
-		btn.Text = "OFF"
-		btn.BackgroundColor3 = Color3.new(1, 0, 0)
-		btn.Parent = f
-		powerButtons[key] = btn
+	
+	-- Adjust scrolling list to not overlap with infoLabel
+	list.Size = UDim2.new(0.9, 0, 0.72, 0)
+
+	-- Categories ordering
+	local catOrder = {"ATTACK", "DEFENSE", "MOVEMENT", "CHAOS"}
+	
+	for _, catKey in ipairs(catOrder) do
+		local catData = GameConstants.POWERUP_CATEGORIES[catKey]
+		if not catData then continue end
 		
-		btn.MouseButton1Click:Connect(function()
-			ReplicatedStorage.AdminAction:FireServer("TogglePowerUp", key)
-		end)
+		-- Category Header
+		local header = Instance.new("TextLabel")
+		header.Size = UDim2.new(1, 0, 0, 35)
+		header.Text = string.format("%s %s %s", catData.Emoji, catData.Name, catData.Emoji)
+		header.TextColor3 = catData.Color
+		header.BackgroundColor3 = Color3.new(0, 0, 0)
+		header.BackgroundTransparency = 0.5
+		header.Font = Enum.Font.FredokaOne
+		header.TextSize = 18
+		header.Parent = manualSelectionGroup
+		
+		-- Grid Container
+		local gridFrame = Instance.new("Frame")
+		gridFrame.Size = UDim2.new(0.95, 0, 0, 0) 
+		gridFrame.BackgroundTransparency = 1
+		gridFrame.Parent = manualSelectionGroup
+		
+		local gridLayout = Instance.new("UIGridLayout")
+		gridLayout.CellSize = UDim2.new(0, 42, 0, 42)
+		gridLayout.CellPadding = UDim2.new(0, 6, 0, 6)
+		gridLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+		gridLayout.Parent = gridFrame
+		
+		-- Add Abilities
+		for _, powerKey in ipairs(catData.Abilities) do
+			local pData = GameConstants.POWERUP_TYPES[powerKey]
+			if not pData then continue end
+			
+			local btn = Instance.new("TextButton")
+			btn.Name = powerKey
+			btn.Size = UDim2.new(0, 42, 0, 42)
+			btn.Text = pData.Emoji
+			btn.TextSize = 24
+			btn.BackgroundColor3 = Color3.new(1, 0, 0)
+			btn.TextColor3 = Color3.new(1, 1, 1)
+			btn.Parent = gridFrame
+			
+			local btnCorner = Instance.new("UICorner")
+			btnCorner.CornerRadius = UDim.new(0, 8)
+			btnCorner.Parent = btn
+			
+			local btnStroke = Instance.new("UIStroke")
+			btnStroke.Thickness = 2
+			btnStroke.Color = pData.Color
+			btnStroke.Parent = btn
+
+			-- Info events
+			btn.MouseEnter:Connect(function()
+				infoLabel.Text = string.format("%s: %s", catData.Name, pData.Name)
+				infoLabel.TextColor3 = pData.Color
+			end)
+			btn.MouseLeave:Connect(function()
+				infoLabel.Text = "Pasa el mouse sobre una habilidad..."
+				infoLabel.TextColor3 = Color3.new(1, 1, 1)
+			end)
+
+			btn.MouseButton1Click:Connect(function()
+				ReplicatedStorage.AdminAction:FireServer("TogglePowerUp", powerKey)
+			end)
+			
+			powerButtons[powerKey] = btn
+		end
+		
+		-- Fix Container Height based on Grid
+		local rows = math.ceil(#catData.Abilities / 7)
+		gridFrame.Size = UDim2.new(0.95, 0, 0, rows * (42 + 6) + 10)
 	end
+	
+	-- Automatic height adjustment for the group container to keep ScrollingFrame working
+	manualLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+		manualSelectionGroup.Size = UDim2.new(1, 0, 0, manualLayout.AbsoluteContentSize.Y + 20)
+	end)
 
 	-- Toggle Panel
 	adminButton.MouseButton1Click:Connect(function()
@@ -257,15 +381,32 @@ function AdminUI.Init()
 		AdminUI.IconMap = {} -- Reset map on full update
 		if state.KillsToWin then kInput.Text = tostring(state.KillsToWin) end
 		
+		if state.AutoRotation ~= nil then
+			autoRotBtn.Text = state.AutoRotation and "AUTO: ON" or "AUTO: OFF"
+			autoRotBtn.BackgroundColor3 = state.AutoRotation and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(200, 50, 0)
+			
+			-- Hide/Show selection tools based on mode
+			manualSelectionGroup.Visible = not state.AutoRotation
+			infoLabel.Visible = not state.AutoRotation
+		end
+
 		if state.DisabledPowerUps then
 			for key, btn in pairs(powerButtons) do
 				local isDisabled = state.DisabledPowerUps[key] == true
-				btn.Text = isDisabled and "OFF" or "ON"
-				btn.BackgroundColor3 = isDisabled and Color3.new(1, 0, 0) or Color3.new(0, 1, 0)
+				local data = GameConstants.POWERUP_TYPES[key]
+				
+				btn.BackgroundColor3 = isDisabled and Color3.fromRGB(80, 20, 20) or (data and data.Color or Color3.fromRGB(0, 180, 0))
+				btn.BackgroundTransparency = isDisabled and 0.5 or 0
+				
+				local stroke = btn:FindFirstChildOfClass("UIStroke")
+				if stroke then
+					stroke.Thickness = isDisabled and 1 or 3
+					stroke.Transparency = isDisabled and 0.5 or 0
+				end
 			end
 		end
 
-		if state.NextRotationTime then
+		if state.NextRotationTime ~= nil then
 			nextRotationTs = state.NextRotationTime
 		end
 
@@ -378,31 +519,51 @@ function AdminUI.Init()
 	end
 
 	-- Live Timer Loop
+	local autoRotationEnabled = true
 	task.spawn(function()
 		while true do
-			local remaining = math.max(0, nextRotationTs - os.time())
-			local mins = math.floor(remaining / 60)
-			local secs = remaining % 60
-			timerLabel.Text = string.format("🕒 %02d:%02d", mins, secs)
-			
-			if remaining <= 10 then
-				timerLabel.TextColor3 = (remaining % 2 == 0) and Color3.new(1, 0, 0) or Color3.new(1, 1, 1)
+			if autoRotationEnabled then
+				local remaining = math.max(0, nextRotationTs - os.time())
+				local mins = math.floor(remaining / 60)
+				local secs = remaining % 60
+				timerLabel.Text = string.format("🕒 %02d:%02d", mins, secs)
+				
+				if remaining <= 10 then
+					timerLabel.TextColor3 = (remaining % 2 == 0) and Color3.new(1, 0, 0) or Color3.new(1, 1, 1)
+				else
+					timerLabel.TextColor3 = Color3.new(1, 1, 1)
+				end
 			else
-				timerLabel.TextColor3 = Color3.new(1, 1, 1)
+				timerLabel.Text = "⚙️ MANUAL"
+				timerLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
 			end
 			task.wait(1)
 		end
 	end)
 
-	ReplicatedStorage.AdminStateUpdate.OnClientEvent:Connect(updateUIState)
+	ReplicatedStorage.AdminStateUpdate.OnClientEvent:Connect(function(state)
+		if state.AutoRotation ~= nil then
+			autoRotationEnabled = state.AutoRotation
+		end
+		updateUIState(state)
+	end)
 	
-	-- Initial State Sync
+	-- Initial State Sync (With Retries)
 	task.spawn(function()
-		local success, initialState = pcall(function()
-			return ReplicatedStorage:WaitForChild("GetAdminState"):InvokeServer()
-		end)
-		if success and initialState then
-			updateUIState(initialState)
+		local attempts = 0
+		while attempts < 5 do
+			local success, initialState = pcall(function()
+				local remote = ReplicatedStorage:WaitForChild("GetAdminState", 5)
+				if remote then return remote:InvokeServer() end
+			end)
+			
+			if success and initialState then
+				print("ADMIN PANEL: State synced successfully!")
+				updateUIState(initialState)
+				break
+			end
+			attempts += 1
+			task.wait(2)
 		end
 	end)
 end

@@ -13,6 +13,7 @@ AdminService.CurrentMap = "DEFAULT"
 AdminService.DisabledPowerUps = {} 
 AdminService.ActiveRotation = {} -- Current 4 active powers
 AdminService.NextRotationTime = 0
+AdminService.AutoRotation = true
 
 function AdminService.Init()
 	-- Create RemoteEvents
@@ -35,6 +36,8 @@ function AdminService.Init()
 		AdminService.DisabledPowerUps[key] = true
 	end
 
+	local updateRotation -- Forward declaration for closure scope
+
 	adminAction.OnServerEvent:Connect(function(player, action, data)
 		if not AdminService.IsAdmin(player) then return end
 
@@ -50,8 +53,30 @@ function AdminService.Init()
 			adminStateUpdate:FireAllClients({CurrentMap = AdminService.CurrentMap})
 		elseif action == "TogglePowerUp" then
 			AdminService.DisabledPowerUps[data] = not AdminService.DisabledPowerUps[data]
-			print(string.format("ADMIN: Power-Up %s is now %s", data, AdminService.DisabledPowerUps[data] and "DISABLED" or "ENABLED"))
-			adminStateUpdate:FireAllClients({DisabledPowerUps = AdminService.DisabledPowerUps})
+			
+			-- If in manual mode, update ActiveRotation so HUD reflects it
+			if not AdminService.AutoRotation then
+				AdminService.ActiveRotation[data] = not AdminService.DisabledPowerUps[data] or nil
+			end
+			
+			adminStateUpdate:FireAllClients({
+				DisabledPowerUps = AdminService.DisabledPowerUps,
+				ActiveRotation = AdminService.ActiveRotation
+			})
+		elseif action == "ToggleAutoRotation" then
+			AdminService.AutoRotation = not AdminService.AutoRotation
+			print("ADMIN: AutoRotation is now " .. (AdminService.AutoRotation and "ON" or "OFF"))
+			
+			if AdminService.AutoRotation then
+				updateRotation()
+			else
+				adminStateUpdate:FireAllClients({
+					AutoRotation = AdminService.AutoRotation,
+					NextRotationTime = 0,
+					DisabledPowerUps = AdminService.DisabledPowerUps,
+					ActiveRotation = AdminService.ActiveRotation
+				})
+			end
 		elseif action == "ForceSpawn" then
 			local PowerUpService = require(script.Parent.PowerUpService)
 			PowerUpService.SpawnPotion(true)
@@ -64,12 +89,15 @@ function AdminService.Init()
 			CurrentMap = AdminService.CurrentMap,
 			DisabledPowerUps = AdminService.DisabledPowerUps,
 			NextRotationTime = AdminService.NextRotationTime,
-			ActiveRotation = AdminService.ActiveRotation
+			ActiveRotation = AdminService.ActiveRotation,
+			AutoRotation = AdminService.AutoRotation
 		}
 	end
 
 	-- 15-MINUTE SEEDED ROTATION SYSTEM
-	local function updateRotation()
+	updateRotation = function()
+		if not AdminService.AutoRotation then return end -- SKIP IF MANUAL
+		
 		local timestamp = os.time()
 		local interval = GameConstants.ROTATION_INTERVAL
 		local segment = math.floor(timestamp / interval)
@@ -105,7 +133,8 @@ function AdminService.Init()
 		adminStateUpdate:FireAllClients({
 			DisabledPowerUps = AdminService.DisabledPowerUps,
 			NextRotationTime = AdminService.NextRotationTime,
-			ActiveRotation = AdminService.ActiveRotation
+			ActiveRotation = AdminService.ActiveRotation,
+			AutoRotation = AdminService.AutoRotation
 		})
 	end
 
@@ -130,7 +159,8 @@ function AdminService.Init()
 			CurrentMap = AdminService.CurrentMap,
 			DisabledPowerUps = AdminService.DisabledPowerUps,
 			NextRotationTime = AdminService.NextRotationTime,
-			ActiveRotation = AdminService.ActiveRotation
+			ActiveRotation = AdminService.ActiveRotation,
+			AutoRotation = AdminService.AutoRotation
 		})
 	end)
 end

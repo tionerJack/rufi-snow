@@ -323,10 +323,41 @@ function PowerUpService.ApplyBuff(character, powerKey)
 		ff.Name = "GodFF"
 		ff.Parent = character
 	elseif powerKey == "BERSERK" then
-		humanoid.WalkSpeed = 50
+		humanoid.WalkSpeed = 60
 		character:SetAttribute("IsBerserk", true)
-	elseif powerKey == "STUN" then
-		character:SetAttribute("HasStunBalls", true)
+		-- Snowman Transformation (Visual)
+		local root = character:FindFirstChild("HumanoidRootPart")
+		if root then
+			local snowman = Instance.new("Model")
+			snowman.Name = "SnowmanBody"
+			snowman.Parent = character
+			
+			local function createSnowball(size, offset, name)
+				local p = Instance.new("Part")
+				p.Name = name
+				p.Shape = Enum.PartType.Ball
+				p.Size = Vector3.new(size, size, size)
+				p.Color = Color3.fromRGB(240, 248, 255)
+				p.Material = Enum.Material.Snow
+				p.Parent = snowman
+				local w = Instance.new("Weld")
+				w.Part0 = root
+				w.Part1 = p
+				w.C0 = offset
+				w.Parent = p
+				return p
+			end
+			
+			createSnowball(4, CFrame.new(0, -1, 0), "Base")
+			createSnowball(3, CFrame.new(0, 2, 0), "Middle")
+			createSnowball(2, CFrame.new(0, 4.5, 0), "Head")
+			
+			-- Hide real character
+			for _, v in ipairs(character:GetDescendants()) do
+				if v:IsA("BasePart") and v.Name ~= "HumanoidRootPart" then v.Transparency = 1 
+				elseif v:IsA("Decal") then v.Transparency = 1 end
+			end
+		end
 	
 	-- 20 NEW TYPES
 	elseif powerKey == "TELEPORT" then
@@ -389,14 +420,18 @@ function PowerUpService.ApplyBuff(character, powerKey)
 			p2.Texture = "rbxassetid://6071575923"
 			p2.Parent = root
 			
-			-- 3. Ground Frost Fog
-			local smoke = Instance.new("Smoke")
-			smoke.Name = "IceAura_Fog"
-			smoke.Color = Color3.fromRGB(150, 230, 255)
-			smoke.Size = 15
-			smoke.Opacity = 0.3
-			smoke.Rise = 2
-			smoke.Parent = root
+			-- 3. Frost Mist (Enhanced Fog)
+			local p3 = Instance.new("ParticleEmitter")
+			p3.Name = "IceAura_Mist"
+			p3.Texture = "rbxassetid://1084969810" -- Smoke/Cloud texture
+			p3.Color = ColorSequence.new(Color3.fromRGB(200, 255, 255))
+			p3.Size = NumberSequence.new({NumberSequenceKeypoint.new(0, 5), NumberSequenceKeypoint.new(1, 10)})
+			p3.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0.8), NumberSequenceKeypoint.new(0.5, 0.4), NumberSequenceKeypoint.new(1, 1)})
+			p3.Lifetime = NumberRange.new(1.5, 3)
+			p3.Rate = 30
+			p3.Speed = NumberRange.new(2, 6)
+			p3.VelocitySpread = 360
+			p3.Parent = root
 		end
 	elseif powerKey == "SLOMO" then
 		character:SetAttribute("HasSloMo", true)
@@ -530,6 +565,20 @@ function PowerUpService.ApplyBuff(character, powerKey)
 		humanoid.JumpPower = 100
 	elseif powerKey == "PULL" then
 		character:SetAttribute("HasMagneticPull", true)
+		local root = character:FindFirstChild("HumanoidRootPart")
+		if root then
+			local p = Instance.new("ParticleEmitter")
+			p.Name = "MagneticEffect"
+			p.Color = ColorSequence.new(data.Color)
+			p.Size = NumberSequence.new({NumberSequenceKeypoint.new(0, 2), NumberSequenceKeypoint.new(1, 0)})
+			p.Transparency = NumberSequence.new(0.5, 1)
+			p.Lifetime = NumberRange.new(0.5, 1)
+			p.Rate = 20
+			p.Speed = NumberRange.new(5, 10)
+			p.VelocitySpread = 360
+			p.Texture = "rbxassetid://6071575923"
+			p.Parent = root
+		end
 	elseif powerKey == "BLIZZARD" then
 		character:SetAttribute("HasBlizzard", true)
 	elseif powerKey == "LASER" then
@@ -538,17 +587,59 @@ function PowerUpService.ApplyBuff(character, powerKey)
 		character:SetAttribute("HasShrinkRay", true)
 	elseif powerKey == "FLY" then
 		character:SetAttribute("HasFlight", true)
-		local bv = Instance.new("BodyVelocity")
-		bv.Name = "FlightVelocity"
-		bv.Velocity = Vector3.new(0, 25, 0) -- Vertical lift
-		bv.MaxForce = Vector3.new(0, 150000, 0) -- Adjusted for hover system
-		bv.Parent = character.PrimaryPart
-		humanoid.JumpPower = 0 -- Disable jumping while flying
+		local root = character.PrimaryPart
+		if root then
+			-- 1. Visual: The Arctic Board (Flying Carpet style)
+			local board = Instance.new("Part")
+			board.Name = "IceBoard"
+			board.Size = Vector3.new(4, 0.4, 6)
+			board.Color = Color3.fromRGB(150, 230, 255)
+			board.Material = Enum.Material.Ice
+			board.Transparency = 0.3
+			board.CanCollide = false
+			board.Parent = character
+			
+			local weld = Instance.new("Weld")
+			weld.Part0 = root
+			weld.Part1 = board
+			weld.C0 = CFrame.new(0, -3.2, 0)
+			weld.Parent = board
+			
+			-- Particulas de estela
+			local p = Instance.new("ParticleEmitter")
+			p.Texture = "rbxassetid://6071575923"
+			p.Size = NumberSequence.new(0.5, 0)
+			p.Transparency = NumberSequence.new(0.5, 1)
+			p.Lifetime = NumberRange.new(0.5)
+			p.Rate = 50
+			p.Speed = NumberRange.new(5, 10)
+			p.VelocitySpread = 20
+			p.EmissionDirection = Enum.NormalId.Back
+			p.Parent = board
+
+			-- 2. Physics: Velocity & Gyro
+			local bv = Instance.new("BodyVelocity")
+			bv.Name = "FlightVelocity"
+			bv.Velocity = Vector3.new(0, 0, 0)
+			bv.MaxForce = Vector3.new(40000, 40000, 40000)
+			bv.Parent = root
+			
+			local bg = Instance.new("BodyGyro")
+			bg.Name = "FlightGyro"
+			bg.MaxTorque = Vector3.new(400000, 400000, 400000)
+			bg.P = 3000
+			bg.D = 500
+			bg.CFrame = root.CFrame
+			bg.Parent = root
+			
+			humanoid.JumpPower = 0 -- Deshabilitar salto
+		end
+	elseif powerKey == "VORTEX" then
+		character:SetAttribute("HasVortexPower", true)
+	elseif powerKey == "THORN" then
+		character:SetAttribute("HasThorns", true)
 	elseif powerKey == "SNIPER" then
 		character:SetAttribute("HasSniper", true)
-	elseif powerKey == "TIME" then
-		character:SetAttribute("HasTimeRecall", true)
-		character:SetAttribute("RecallPos", character.PrimaryPart.Position)
 	end
 	
 	-- Premium Visual: Power Aura (Color-Coded)
@@ -671,19 +762,38 @@ function PowerUpService.RemoveBuff(character)
 	if ff then ff:Destroy() end
 	local bv = character.PrimaryPart and character.PrimaryPart:FindFirstChild("FlightVelocity")
 	if bv then bv:Destroy() end
-	local gf = character:FindFirstChild("HumanoidRootPart") and character.HumanoidRootPart:FindFirstChild("GhostFire")
-	if gf then gf:Destroy() end
-	local pa = character:FindFirstChild("HumanoidRootPart") and character.HumanoidRootPart:FindFirstChild("PowerAura")
-	if pa then pa:Destroy() end
-	local iae = character:FindFirstChild("HumanoidRootPart") and character.HumanoidRootPart:FindFirstChild("IceAuraEffect")
-	if iae then iae:Destroy() end
+	local bg = character.PrimaryPart and character.PrimaryPart:FindFirstChild("FlightGyro")
+	if bg then bg:Destroy() end
+	local board = character:FindFirstChild("IceBoard")
+	if board then board:Destroy() end
+	local rootParts = character:FindFirstChild("HumanoidRootPart")
+	if rootParts then
+		local core = rootParts:FindFirstChild("IceAura_Core")
+		if core then core:Destroy() end
+		local bliz = rootParts:FindFirstChild("IceAura_Blizzard")
+		if bliz then bliz:Destroy() end
+		local mist = rootParts:FindFirstChild("IceAura_Mist")
+		if mist then mist:Destroy() end
+		local fog = rootParts:FindFirstChild("IceAura_Fog")
+		if fog then fog:Destroy() end
+		
+		local pa = rootParts:FindFirstChild("PowerAura")
+		if pa then pa:Destroy() end
+		local me = rootParts:FindFirstChild("MagneticEffect")
+		if me then me:Destroy() end
+		local gf = rootParts:FindFirstChild("GhostFire")
+		if gf then gf:Destroy() end
+		local sm = character:FindFirstChild("SnowmanBody")
+		if sm then sm:Destroy() end
+	end
 	
 	for _, v in ipairs(character:GetChildren()) do
 		if v.Name == "MirageDecoy" or v.Name == "MasterClone" then v:Destroy() end
 	end
 	
 	for _, v in ipairs(character:GetDescendants()) do
-		if v:IsA("BasePart") and v.Name ~= "HumanoidRootPart" then v.Transparency = 0 end
+		if v:IsA("BasePart") and v.Name ~= "HumanoidRootPart" then v.Transparency = 0 
+		elseif v:IsA("Decal") then v.Transparency = 0 end
 	end
 	
 	print(string.format("POWERUP: Buff expired for %s", character.Name))
@@ -786,13 +896,36 @@ function PowerUpService.StartLoop()
 					
 					-- 4. Magnetic Pull (Pull Enemies)
 					if char:GetAttribute("HasMagneticPull") then
-						for _, p in ipairs(workspace:GetPartBoundsInRadius(root.Position, 30)) do
+						for _, p in ipairs(workspace:GetPartBoundsInRadius(root.Position, 35)) do -- Slightly more range
 							local m = p:FindFirstAncestorOfClass("Model")
 							if m and m:FindFirstChild("Humanoid") and m ~= char then
 								local targetRoot = m:FindFirstChild("HumanoidRootPart")
 								if targetRoot then
-									local dir = (root.Position - targetRoot.Position).Unit
-									targetRoot:ApplyImpulse(dir * 1000)
+									local dist = (root.Position - targetRoot.Position).Magnitude
+									local isFrozen = m:GetAttribute("IsFrozen")
+									local isRolling = m:GetAttribute("IsRolling")
+
+									if isFrozen and not isRolling then
+										-- Strong suction for frozen snowballs
+										local dir = (root.Position - targetRoot.Position).Unit
+										targetRoot:ApplyImpulse(dir * 3000) -- Stronger pull
+
+										-- AUTO THROW: If close enough, launch them in player's look direction!
+										if dist < 10 then
+											local RollLogic = require(script.Parent.RollLogic)
+											RollLogic.StartRolling(m, root.CFrame.LookVector, player)
+											
+											-- Visual Feedback for the "Auto-Throw"
+											local remoteFeedback = ReplicatedStorage:FindFirstChild("GameplayFeedback")
+											if remoteFeedback then
+												remoteFeedback:FireClient(player, "CameraShake", 1)
+											end
+										end
+									else
+										-- Normal pull for non-frozen enemies
+										local dir = (root.Position - targetRoot.Position).Unit
+										targetRoot:ApplyImpulse(dir * 1200)
+									end
 								end
 							end
 						end
@@ -840,32 +973,45 @@ function PowerUpService.StartLoop()
 					-- 6. Flight (Directional + Hover logic)
 					if char:GetAttribute("HasFlight") then
 						local bv = root:FindFirstChild("FlightVelocity")
+						local bg = root:FindFirstChild("FlightGyro")
 						local hum = char:FindFirstChildOfClass("Humanoid")
-						if bv and hum then
-							-- 1. Horizontal Control
-							local horizontalVel = hum.MoveDirection * 44 -- Slightly faster in air
+						
+						if bv and bg and hum then
+							-- 1. Horizontal Control (Faster and more responsive)
+							local moveDir = hum.MoveDirection
+							local horizontalVel = moveDir * 55
 							
-							-- 2. Vertical Hover Control (Raycast to ground)
+							-- 2. Vertical Hover Control
 							local rayParams = RaycastParams.new()
 							rayParams.FilterDescendantsInstances = {char}
 							rayParams.FilterType = Enum.RaycastFilterType.Exclude
+							local rayResult = workspace:Raycast(root.Position, Vector3.new(0, -200, 0), rayParams)
 							
-							local rayResult = workspace:Raycast(root.Position, Vector3.new(0, -50, 0), rayParams)
-							local targetHeight = 12 -- Approx 2x char height
-							local currentHeight = rayResult and (root.Position.Y - rayResult.Position.Y) or 50
+							-- 3. Tilting Logic (Flying Carpet feel)
+							local tiltAngle = 0
+							local rollAngle = 0
 							
-							-- PD-like control for smooth hovering
+							if moveDir.Magnitude > 0 then
+								local localMove = root.CFrame:VectorToObjectSpace(moveDir)
+								tiltAngle = -localMove.Z * 0.4
+								rollAngle = -localMove.X * 0.4
+							end
+							
+							local bobbing = math.sin(os.clock() * 4) * 0.8
+							local targetHeight = char:GetAttribute("FlightTargetHeight") or 25
+							local currentHeight = rayResult and (root.Position.Y - rayResult.Position.Y) or 100
 							local yError = targetHeight - currentHeight
-							local verticalPush = yError * 5 -- Strength of the hover
-							
-							-- Limit vertical speed to avoid jerky movement
-							verticalPush = math.clamp(verticalPush, -15, 15)
-							
-							-- Add slight bobbing effect
-							local bobbing = math.sin(os.clock() * 3) * 1.5
+							local verticalPush = math.clamp(yError * 10, -60, 60)
 							
 							bv.Velocity = horizontalVel + Vector3.new(0, verticalPush + bobbing, 0)
-							bv.MaxForce = Vector3.new(40000, 150000, 40000) 
+							
+							-- Update Orientation
+							local targetCF = CFrame.new(root.Position, root.Position + Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z))
+							if moveDir.Magnitude > 0 then
+								targetCF = CFrame.new(root.Position, root.Position + Vector3.new(moveDir.X, 0, moveDir.Z))
+							end
+							
+							bg.CFrame = targetCF * CFrame.Angles(tiltAngle, 0, rollAngle)
 						end
 					end
 					
@@ -909,6 +1055,40 @@ function PowerUpService.StartLoop()
 									task.delay(1, function() if thum then thum.WalkSpeed = oldSpeed end end)
 								end
 							end
+						end
+					end
+
+					-- 10. Berserk Touch (Freeze on touch)
+					if char:GetAttribute("IsBerserk") then
+						for _, p in ipairs(workspace:GetPartBoundsInRadius(root.Position, 6)) do
+							local m = p:FindFirstAncestorOfClass("Model")
+							if m and m:FindFirstChild("Humanoid") and m ~= char then
+								local fs = require(script.Parent.FreezeService)
+								fs.ApplyHit(m, player)
+							end
+						end
+					end
+
+					-- 11. Thorn Trail Logic (Functional freezing trail)
+					if char:GetAttribute("HasThorns") then
+						local lastThorn = char:GetAttribute("LastThornTime") or 0
+						if now - lastThorn > 0.5 then
+							char:SetAttribute("LastThornTime", now)
+							local spike = Instance.new("Part")
+							spike.Name = "IceThorn"
+							spike.Size = Vector3.new(4, 4, 4)
+							spike.Position = root.Position - Vector3.new(0, 2, 0)
+							spike.Color = Color3.fromRGB(0, 200, 0)
+							spike.Material = Enum.Material.Ice
+							spike.Anchored = true spike.CanCollide = false spike.Parent = workspace
+							spike.Touched:Connect(function(hit)
+								local m = hit:FindFirstAncestorOfClass("Model")
+								if m and m:FindFirstChild("Humanoid") and m ~= char then
+									local fs = require(script.Parent.FreezeService)
+									fs.ApplyHit(m, player)
+								end
+							end)
+							task.delay(5, function() if spike then spike:Destroy() end end)
 						end
 					end
 				end

@@ -18,7 +18,7 @@ local GameConstants = {
 	POWERUP_TYPES = {
 		-- ATTACK (Estrategia Ofensiva)
 		TRIPLE = {Name = "Tiro Triple", Color = Color3.fromRGB(255, 100, 100), Emoji = "🔱"},
-		MEGA = {Name = "Mega Bola", Color = Color3.fromRGB(255, 0, 0), Emoji = "☄️"},
+		MEGA = {Name = "Mega Bola", Color = Color3.fromRGB(240, 248, 255), Emoji = "☄️"},
 		RAPID = {Name = "Fuego Rápido", Color = Color3.fromRGB(255, 150, 50), Emoji = "🔫"},
 		EXPLOSIVE = {Name = "Explosivo", Color = Color3.fromRGB(255, 50, 0), Emoji = "💥"},
 		FIRE = {Name = "Furia Ártica", Color = Color3.fromRGB(255, 80, 0), Emoji = "👹"},
@@ -59,8 +59,6 @@ local GameConstants = {
 		TITAN = {Name = "Titán", Color = Color3.fromRGB(0, 0, 150), Emoji = "🌋"},
 		PULL = {Name = "Atracción", Color = Color3.fromRGB(255, 50, 255), Emoji = "🧲"},
 		BLIZZARD = {Name = "Ventisca", Color = Color3.fromRGB(200, 240, 255), Emoji = "🌨️"},
-		TIME = {Name = "Salto Temporal", Color = Color3.fromRGB(0, 150, 150), Emoji = "⏳"},
-		STUN = {Name = "Aturdimiento", Color = Color3.fromRGB(255, 165, 0), Emoji = "💫"},
 		BOUNCE = {Name = "Rebotador", Color = Color3.fromRGB(240, 230, 140), Emoji = "🏀"},
 		SHRINK = {Name = "Rayo Encogedor", Color = Color3.fromRGB(0, 255, 0), Emoji = "🤏"},
 	},
@@ -90,7 +88,7 @@ local GameConstants = {
 			Name = "CAOS",
 			Emoji = "🌀",
 			Color = Color3.fromRGB(200, 50, 255),
-			Abilities = {"GIANT", "MINI", "VORTEX", "MIRAGE", "METEOR", "SHOCK", "CLONE", "TITAN", "PULL", "BLIZZARD", "TIME", "STUN", "BOUNCE", "SHRINK"}
+			Abilities = {"GIANT", "MINI", "VORTEX", "MIRAGE", "METEOR", "SHOCK", "CLONE", "TITAN", "PULL", "BLIZZARD", "BOUNCE", "SHRINK"}
 		}
 	},
 	
